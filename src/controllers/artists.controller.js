@@ -19,8 +19,10 @@ export const getFeaturedArtists = async (req, res) => {
 
 export const getAllArtists = async (req, res) => {
   const { page = 1, limit = 10, q } = req.query;
-  const from = (page - 1) * limit;
-  const to = from + limit - 1;
+  const pageInt = parseInt(page);
+  const limitInt = parseInt(limit);
+  const from = (pageInt - 1) * limitInt;
+  const to = from + limitInt - 1;
 
   try {
     let query = supabase
@@ -38,7 +40,7 @@ export const getAllArtists = async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ data, count, page: parseInt(page), limit: parseInt(limit) });
+    res.json({ data, count, page: pageInt, limit: limitInt });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
