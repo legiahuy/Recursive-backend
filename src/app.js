@@ -7,6 +7,7 @@ import artistsRouter from "./routes/artists.routes.js";
 import releasesRouter from "./routes/releases.routes.js";
 import genresRouter from "./routes/genres.routes.js";
 import submissionsRouter from "./routes/submissions.routes.js";
+import authRouter from "./routes/auth.routes.js";
 
 const app = express();
 
@@ -26,5 +27,6 @@ app.use("/api/artists", artistsRouter);
 app.use("/api/releases", releasesRouter);
 app.use("/api/genres", genresRouter);
 app.use("/api/demo-submission", submissionsRouter);
+app.use("/api/auth", authRouter);
 
 export default app;
