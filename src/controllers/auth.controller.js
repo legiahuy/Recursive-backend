@@ -30,6 +30,7 @@ export const signUp = async (req, res) => {
         {
           email,
           password_hash: passwordHash,
+          role: "user",
         },
       ])
       .select()
@@ -40,12 +41,14 @@ export const signUp = async (req, res) => {
       return res.status(400).json({ error: insertError.message });
     }
 
-    res
-      .status(201)
-      .json({
-        message: "User created successfully",
-        user: { id: newUser.id, email: newUser.email },
-      });
+    res.status(201).json({
+      message: "User created successfully",
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        role: newUser.role || "user",
+      },
+    });
   } catch (error) {
     console.error("SignUp Error:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -78,13 +81,11 @@ export const signIn = async (req, res) => {
       expiresIn: "1h",
     });
 
-    res
-      .status(200)
-      .json({
-        message: "Login successful",
-        token,
-        user: { id: user.id, email: user.email },
-      });
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: { id: user.id, email: user.email, role: user.role || "user" },
+    });
   } catch (error) {
     console.error("SignIn Error:", error);
     res.status(500).json({ error: "Internal server error" });

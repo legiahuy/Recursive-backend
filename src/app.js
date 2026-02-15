@@ -9,6 +9,7 @@ import genresRouter from "./routes/genres.routes.js";
 import submissionsRouter from "./routes/submissions.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import heroSpotlightsRouter from "./routes/hero-spotlights.routes.js";
+import dashboardRouter from "./routes/dashboard.routes.js";
 
 const app = express();
 
@@ -30,5 +31,6 @@ app.use("/api/genres", genresRouter);
 app.use("/api/demo-submission", submissionsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/hero-spotlights", heroSpotlightsRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 export default app;

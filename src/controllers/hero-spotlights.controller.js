@@ -32,3 +32,98 @@ export const getAllHeroSpotlights = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const createHeroSpotlight = async (req, res) => {
+  try {
+    const {
+      title,
+      subtitle,
+      description,
+      image_url,
+      cta_text,
+      cta_link,
+      background_color,
+      catalog_code,
+      is_active,
+      display_order,
+    } = req.body;
+
+    // If setting to active, deactivate others
+    if (is_active) {
+      await supabase
+        .from("hero_spotlights")
+        .update({ is_active: false })
+        .neq("id", 0); // Updates all rows
+    }
+
+    const { data, error } = await supabase
+      .from("hero_spotlights")
+      .insert([
+        {
+          title,
+          subtitle,
+          description,
+          image_url,
+          cta_text,
+          cta_link,
+          background_color,
+          catalog_code,
+          is_active,
+          display_order,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateHeroSpotlight = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // If setting to active, deactivate others
+    if (updates.is_active) {
+      await supabase
+        .from("hero_spotlights")
+        .update({ is_active: false })
+        .neq("id", id);
+    }
+
+    const { data, error } = await supabase
+      .from("hero_spotlights")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteHeroSpotlight = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from("hero_spotlights")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

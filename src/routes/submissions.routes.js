@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { createSubmission } from "../controllers/submissions.controller.js";
+import {
+  createSubmission,
+  getAllSubmissions,
+  updateSubmissionStatus,
+} from "../controllers/submissions.controller.js";
+import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
 
 const submissionsRouter = Router();
 
@@ -36,5 +41,62 @@ const submissionsRouter = Router();
  *         description: Server error.
  */
 submissionsRouter.post("/", createSubmission);
+
+/**
+ * @swagger
+ * /demo-submission:
+ *   get:
+ *     summary: Get all demo submissions
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of submissions.
+ *       403:
+ *         description: Forbidden (Admin only).
+ */
+submissionsRouter.get("/", verifyToken, isAdmin, getAllSubmissions);
+
+/**
+ * @swagger
+ * /demo-submission/{id}:
+ *   put:
+ *     summary: Update submission status
+ *     tags: [Submissions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *               note:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Submission updated.
+ *       403:
+ *         description: Forbidden (Admin only).
+ */
+submissionsRouter.put("/:id", verifyToken, isAdmin, updateSubmissionStatus);
 
 export default submissionsRouter;
