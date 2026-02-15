@@ -8,6 +8,7 @@ import releasesRouter from "./routes/releases.routes.js";
 import genresRouter from "./routes/genres.routes.js";
 import submissionsRouter from "./routes/submissions.routes.js";
 import authRouter from "./routes/auth.routes.js";
+import heroSpotlightsRouter from "./routes/hero-spotlights.routes.js";
 
 const app = express();
 
@@ -28,5 +29,6 @@ app.use("/api/releases", releasesRouter);
 app.use("/api/genres", genresRouter);
 app.use("/api/demo-submission", submissionsRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/hero-spotlights", heroSpotlightsRouter);
 
 export default app;

@@ -15,7 +15,6 @@ export const getFeaturedReleases = async (req, res) => {
       )
       .eq("status", "released")
       .eq("is_featured", true)
-      .limit(4)
       .order("release_date", { ascending: false });
 
     if (error) throw error;

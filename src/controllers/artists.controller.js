@@ -6,8 +6,7 @@ export const getFeaturedArtists = async (req, res) => {
       .from("artists")
       .select("*")
       .eq("status", "active")
-      .eq("is_featured", true)
-      .limit(4);
+      .eq("is_featured", true);
 
     if (error) throw error;
 
