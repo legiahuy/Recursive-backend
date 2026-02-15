@@ -3,7 +3,11 @@ import {
   getFeaturedReleases,
   getAllReleases,
   getReleaseBySlug,
+  createRelease,
+  updateRelease,
+  deleteRelease,
 } from "../controllers/releases.controller.js";
+import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
 
 const releasesRouter = Router();
 
@@ -74,5 +78,84 @@ releasesRouter.get("/", getAllReleases);
  *         description: Release not found.
  */
 releasesRouter.get("/:slug", getReleaseBySlug);
+
+/**
+ * @swagger
+ * /releases:
+ *   post:
+ *     summary: Create a new release
+ *     tags: [Releases]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - slug
+ *               - release_date
+ *               - type
+ *     responses:
+ *       201:
+ *         description: Release created successfully.
+ *       403:
+ *         description: Forbidden (Admin only).
+ */
+releasesRouter.post("/", verifyToken, isAdmin, createRelease);
+
+/**
+ * @swagger
+ * /releases/{id}:
+ *   put:
+ *     summary: Update a release
+ *     tags: [Releases]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Release ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Release updated successfully.
+ *       403:
+ *         description: Forbidden (Admin only).
+ */
+releasesRouter.put("/:id", verifyToken, isAdmin, updateRelease);
+
+/**
+ * @swagger
+ * /releases/{id}:
+ *   delete:
+ *     summary: Delete a release
+ *     tags: [Releases]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Release ID
+ *     responses:
+ *       200:
+ *         description: Release deleted successfully.
+ *       403:
+ *         description: Forbidden (Admin only).
+ */
+releasesRouter.delete("/:id", verifyToken, isAdmin, deleteRelease);
 
 export default releasesRouter;

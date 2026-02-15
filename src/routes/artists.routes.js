@@ -3,7 +3,11 @@ import {
   getFeaturedArtists,
   getAllArtists,
   getArtistBySlug,
+  createArtist,
+  updateArtist,
+  deleteArtist,
 } from "../controllers/artists.controller.js";
+import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
 
 const artistsRouter = Router();
 
@@ -69,5 +73,102 @@ artistsRouter.get("/", getAllArtists);
  *         description: Artist not found.
  */
 artistsRouter.get("/:slug", getArtistBySlug);
+
+/**
+ * @swagger
+ * /artists:
+ *   post:
+ *     summary: Create a new artist
+ *     tags: [Artists]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - slug
+ *             properties:
+ *               name:
+ *                 type: string
+ *               slug:
+ *                 type: string
+ *               bio:
+ *                 type: string
+ *               image_url:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Artist created successfully.
+ *       403:
+ *         description: Forbidden (Admin only).
+ */
+artistsRouter.post("/", verifyToken, isAdmin, createArtist);
+
+/**
+ * @swagger
+ * /artists/{id}:
+ *   put:
+ *     summary: Update an artist
+ *     tags: [Artists]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Artist ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               bio:
+ *                 type: string
+ *               image_url:
+ *                 type: string
+ *               is_featured:
+ *                 type: boolean
+ *               status:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Artist updated successfully.
+ *       403:
+ *         description: Forbidden (Admin only).
+ */
+artistsRouter.put("/:id", verifyToken, isAdmin, updateArtist);
+
+/**
+ * @swagger
+ * /artists/{id}:
+ *   delete:
+ *     summary: Delete an artist
+ *     tags: [Artists]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Artist ID
+ *     responses:
+ *       200:
+ *         description: Artist deleted successfully.
+ *       403:
+ *         description: Forbidden (Admin only).
+ */
+artistsRouter.delete("/:id", verifyToken, isAdmin, deleteArtist);
 
 export default artistsRouter;

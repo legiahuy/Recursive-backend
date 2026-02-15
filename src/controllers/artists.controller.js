@@ -47,17 +47,97 @@ export const getAllArtists = async (req, res) => {
 
 export const getArtistBySlug = async (req, res) => {
   const { slug } = req.params;
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      slug,
+    );
 
   try {
-    const { data: artist, error: artistError } = await supabase
+    let query = supabase.from("artists").select(
+      `
+        *,
+        artist_social_links(*)
+      `,
+    );
+
+    if (isUuid) {
+      query = query.eq("id", slug);
+    } else {
+      query = query.eq("slug", slug);
+    }
+
+    const { data, error } = await query.single();
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const createArtist = async (req, res) => {
+  const { name, bio, image_url, slug, is_featured, status } = req.body;
+
+  try {
+    const { data, error } = await supabase
       .from("artists")
-      .select("*, artist_social_links(*)")
-      .eq("slug", slug)
+      .insert([
+        {
+          name,
+          bio,
+          image_url,
+          slug,
+          is_featured: is_featured || false,
+          status: status || "active",
+        },
+      ])
+      .select()
       .single();
 
-    if (artistError) throw artistError;
+    if (error) {
+      throw error;
+    }
 
-    res.json(artist);
+    res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const updateArtist = async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+
+  try {
+    const { data, error } = await supabase
+      .from("artists")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteArtist = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { error } = await supabase.from("artists").delete().eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({ message: "Artist deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
