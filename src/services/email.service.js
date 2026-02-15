@@ -1,25 +1,19 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || "465"),
-  secure: process.env.SMTP_SECURE === "true" || true, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendEmail = async (to, subject, html) => {
   try {
-    const info = await transporter.sendMail({
-      from: `"Recursive Recordings" <${process.env.EMAIL_USER}>`,
-      to,
+    const data = await resend.emails.send({
+      from:
+        process.env.EMAIL_FROM ||
+        "Recursive Recordings <noreply@demos.recursiverecordings.com>",
+      to: [to],
       subject,
       html,
     });
-    console.log("Message sent: %s", info.messageId);
-    return info;
+    console.log("Email sent successfully:", data.id);
+    return data;
   } catch (error) {
     console.error("Error sending email:", error);
     throw error;
@@ -43,7 +37,7 @@ export const sendAcceptanceEmail = async (to, artistName, customMessage) => {
   const defaultMessage = `
     <p>Hi ${artistName},</p>
     <p>We've listened to your demo and we really like what we hear!</p>
-    <p>We would love to discuss a potential release with you. Please reply to this email so we can take the next steps.</p>
+    <p>We would love to discuss a potential release with you. Our team will reach out to you soon via our contact email to discuss the release process and next steps.</p>
     <p>Cheers,<br/>Recursive Recordings Team</p>
   `;
 
