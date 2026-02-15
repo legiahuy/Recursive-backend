@@ -9,6 +9,7 @@ export const getFeaturedReleases = async (req, res) => {
         *,
         release_artists(
           role,
+          order_index,
           artists(id, name, slug)
         )
       `,
@@ -40,6 +41,7 @@ export const getAllReleases = async (req, res) => {
         *,
         release_artists(
           role,
+          order_index,
           artists(id, name, slug)
         ),
         release_genres!inner(
@@ -83,6 +85,7 @@ export const getReleaseBySlug = async (req, res) => {
         *,
         release_artists(
           role,
+          order_index,
           artists(id, name, slug)
         ),
         release_genres(
