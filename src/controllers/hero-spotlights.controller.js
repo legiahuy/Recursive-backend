@@ -6,12 +6,11 @@ export const getActiveHeroSpotlight = async (req, res) => {
       .from("hero_spotlights")
       .select("*")
       .eq("is_active", true)
-      .single();
+      .order("display_order", { ascending: true });
 
-    // PGRST116 = no rows found, return null instead of error
-    if (error && error.code !== "PGRST116") throw error;
+    if (error) throw error;
 
-    res.json(data || null);
+    res.json(data || []);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -48,14 +47,6 @@ export const createHeroSpotlight = async (req, res) => {
       display_order,
     } = req.body;
 
-    // If setting to active, deactivate others
-    if (is_active) {
-      await supabase
-        .from("hero_spotlights")
-        .update({ is_active: false })
-        .neq("id", 0); // Updates all rows
-    }
-
     const { data, error } = await supabase
       .from("hero_spotlights")
       .insert([
@@ -87,14 +78,6 @@ export const updateHeroSpotlight = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-
-    // If setting to active, deactivate others
-    if (updates.is_active) {
-      await supabase
-        .from("hero_spotlights")
-        .update({ is_active: false })
-        .neq("id", id);
-    }
 
     const { data, error } = await supabase
       .from("hero_spotlights")
