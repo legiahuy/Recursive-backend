@@ -1,5 +1,5 @@
 import express from "express";
-import { signUp, signIn, signOut } from "../controllers/auth.controller.js";
+import { signUp, signIn, signOut, refreshAuthToken } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
@@ -58,6 +58,31 @@ router.post("/signup", signUp);
  *         description: Invalid credentials
  */
 router.post("/login", signIn);
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh auth token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Token refreshed successfully
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
+router.post("/refresh", refreshAuthToken);
 
 /**
  * @swagger
