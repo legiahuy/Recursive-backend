@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key";
 
 export const signUp = async (req, res) => {
   const { email, password } = req.body;
@@ -76,14 +77,19 @@ export const signIn = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Generate JWT
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
-      expiresIn: "1h",
+    // Generate JWT access and refresh tokens
+    const accessToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+      expiresIn: "15m",
+    });
+
+    const refreshToken = jwt.sign({ id: user.id, email: user.email }, JWT_REFRESH_SECRET, {
+      expiresIn: "7d",
     });
 
     res.status(200).json({
       message: "Login successful",
-      token,
+      accessToken,
+      refreshToken,
       user: { id: user.id, email: user.email, role: user.role || "user" },
     });
   } catch (error) {
@@ -92,8 +98,45 @@ export const signIn = async (req, res) => {
   }
 };
 
+export const refreshAuthToken = async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    return res.status(403).json({ error: "Refresh token is missing" });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    
+    // Validate user still exists
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", decoded.id)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ error: "User not found or disabled" });
+    }
+
+    const newAccessToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+      expiresIn: "15m",
+    });
+
+    const newRefreshToken = jwt.sign({ id: user.id, email: user.email }, JWT_REFRESH_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.status(200).json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+  } catch (error) {
+    console.error("Refresh Token Error:", error);
+    return res.status(401).json({ error: "Invalid or expired refresh token" });
+  }
+};
+
 export const signOut = async (req, res) => {
   // For JWT, logout is typically handled on the client by deleting the token.
-  // Optionally, we could implement a blacklist here.
   res.status(200).json({ message: "Logout successful" });
 };
