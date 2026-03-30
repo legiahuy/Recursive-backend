@@ -96,7 +96,7 @@ artistsRouter.get("/:slug", getArtistBySlug);
  *                 type: string
  *               slug:
  *                 type: string
- *               bio:
+ *               description:
  *                 type: string
  *               image_url:
  *                 type: string
@@ -132,7 +132,7 @@ artistsRouter.post("/", verifyToken, isAdmin, createArtist);
  *             properties:
  *               name:
  *                 type: string
- *               bio:
+ *               description:
  *                 type: string
  *               image_url:
  *                 type: string

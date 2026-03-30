@@ -77,7 +77,7 @@ export const getArtistBySlug = async (req, res) => {
 };
 
 export const createArtist = async (req, res) => {
-  const { name, bio, image_url, slug, is_featured, status } = req.body;
+  const { name, description, image_url, slug, is_featured, status } = req.body;
 
   try {
     const { data, error } = await supabase
@@ -85,7 +85,7 @@ export const createArtist = async (req, res) => {
       .insert([
         {
           name,
-          bio,
+          description,
           image_url,
           slug,
           is_featured: is_featured || false,
