@@ -11,6 +11,9 @@ import authRouter from "./routes/auth.routes.js";
 import heroSpotlightsRouter from "./routes/hero-spotlights.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
 import uploadRouter from "./routes/upload.routes.js";
+import newsletterRouter from "./routes/newsletter.routes.js";
+import analyticsRouter from "./routes/analytics.routes.js";
+import postsRouter from "./routes/posts.routes.js";
 const app = express();
 
 app.use(cors());
@@ -33,5 +36,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/hero-spotlights", heroSpotlightsRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/api/newsletter", newsletterRouter);
+app.use("/api/analytics", analyticsRouter);
+app.use("/api/posts", postsRouter);
 
 export default app;

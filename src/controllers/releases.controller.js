@@ -124,6 +124,10 @@ export const createRelease = async (req, res) => {
     description,
     buy_link,
     is_featured,
+    seo_title,
+    seo_description,
+    og_image_url,
+    canonical_url,
     artists, // Array of { artist_id, role, order_index }
     genres, // Array of genre_ids
   } = req.body;
@@ -144,6 +148,10 @@ export const createRelease = async (req, res) => {
           description,
           buy_link,
           is_featured: is_featured || false,
+          seo_title,
+          seo_description,
+          og_image_url,
+          canonical_url,
         },
       ])
       .select()
@@ -200,6 +208,10 @@ export const updateRelease = async (req, res) => {
     description,
     buy_link,
     is_featured,
+    seo_title,
+    seo_description,
+    og_image_url,
+    canonical_url,
     artists,
     genres,
   } = req.body;
@@ -219,6 +231,10 @@ export const updateRelease = async (req, res) => {
         description,
         buy_link,
         is_featured,
+        seo_title,
+        seo_description,
+        og_image_url,
+        canonical_url,
       })
       .eq("id", id)
       .select()
