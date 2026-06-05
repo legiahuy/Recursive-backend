@@ -1,7 +1,22 @@
 import { supabase } from "../config/supabase.config.js";
 
 export const createSubmission = async (req, res) => {
-  const { artist_name, email, stream_link, note } = req.body;
+  const {
+    artist_name,
+    email,
+    stream_link,
+    note,
+    bio,
+    genre,
+    country,
+    social_link,
+    consent = false,
+    website,
+  } = req.body;
+
+  if (website) {
+    return res.status(201).json({ status: "received" });
+  }
 
   try {
     const { data, error } = await supabase
@@ -11,7 +26,11 @@ export const createSubmission = async (req, res) => {
           artist_name,
           email,
           stream_link,
-          note,
+          note: note || bio,
+          genre,
+          country,
+          social_link,
+          consent,
           status: "pending",
           source: "website",
         },
@@ -62,13 +81,13 @@ import {
 
 export const updateSubmissionStatus = async (req, res) => {
   const { id } = req.params;
-  const { status, note, emailMessage } = req.body;
+  const { status, note, internal_note, emailMessage } = req.body;
 
   try {
     // 1. Update status in DB
     const { data, error } = await supabase
       .from("demo_submissions")
-      .update({ status, note })
+      .update({ status, note, internal_note })
       .eq("id", id)
       .select()
       .single();

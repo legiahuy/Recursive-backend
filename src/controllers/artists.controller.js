@@ -56,7 +56,22 @@ export const getArtistBySlug = async (req, res) => {
     let query = supabase.from("artists").select(
       `
         *,
-        artist_social_links(*)
+        artist_social_links(*),
+        release_artists(
+          role,
+          order_index,
+          releases(
+            id,
+            title,
+            slug,
+            release_date,
+            cover_image_url,
+            catalog_code,
+            type,
+            status,
+            buy_link
+          )
+        )
       `,
     );
 
@@ -77,7 +92,21 @@ export const getArtistBySlug = async (req, res) => {
 };
 
 export const createArtist = async (req, res) => {
-  const { name, description, image_url, slug, is_featured, status } = req.body;
+  const {
+    name,
+    description,
+    bio,
+    image_url,
+    slug,
+    country,
+    is_featured,
+    status,
+    seo_title,
+    seo_description,
+    og_image_url,
+    canonical_url,
+    social_links,
+  } = req.body;
 
   try {
     const { data, error } = await supabase
@@ -85,11 +114,16 @@ export const createArtist = async (req, res) => {
       .insert([
         {
           name,
-          description,
+          description: description || bio,
           image_url,
           slug,
+          country,
           is_featured: is_featured || false,
           status: status || "active",
+          seo_title,
+          seo_description,
+          og_image_url,
+          canonical_url,
         },
       ])
       .select()
@@ -97,6 +131,23 @@ export const createArtist = async (req, res) => {
 
     if (error) {
       throw error;
+    }
+
+    if (social_links && social_links.length > 0) {
+      const links = social_links
+        .filter((link) => link.platform && link.url)
+        .map((link) => ({
+          artist_id: data.id,
+          platform: link.platform,
+          url: link.url,
+        }));
+
+      if (links.length > 0) {
+        const { error: linksError } = await supabase
+          .from("artist_social_links")
+          .insert(links);
+        if (linksError) throw linksError;
+      }
     }
 
     res.status(201).json(data);
@@ -107,7 +158,11 @@ export const createArtist = async (req, res) => {
 
 export const updateArtist = async (req, res) => {
   const { id } = req.params;
-  const updates = req.body;
+  const { bio, social_links, ...updates } = req.body;
+
+  if (bio !== undefined && updates.description === undefined) {
+    updates.description = bio;
+  }
 
   try {
     const { data, error } = await supabase
@@ -119,6 +174,25 @@ export const updateArtist = async (req, res) => {
 
     if (error) {
       throw error;
+    }
+
+    if (social_links) {
+      await supabase.from("artist_social_links").delete().eq("artist_id", id);
+
+      const links = social_links
+        .filter((link) => link.platform && link.url)
+        .map((link) => ({
+          artist_id: id,
+          platform: link.platform,
+          url: link.url,
+        }));
+
+      if (links.length > 0) {
+        const { error: linksError } = await supabase
+          .from("artist_social_links")
+          .insert(links);
+        if (linksError) throw linksError;
+      }
     }
 
     res.json(data);
