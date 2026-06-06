@@ -46,6 +46,20 @@ export const createHeroSpotlight = async (req, res) => {
       is_active,
       display_order,
     } = req.body;
+    let resolvedDisplayOrder = display_order;
+
+    if (resolvedDisplayOrder === undefined || resolvedDisplayOrder === null) {
+      const { data: latest, error: latestError } = await supabase
+        .from("hero_spotlights")
+        .select("display_order")
+        .order("display_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestError) throw latestError;
+
+      resolvedDisplayOrder = (latest?.display_order || 0) + 1;
+    }
 
     const { data, error } = await supabase
       .from("hero_spotlights")
@@ -60,7 +74,7 @@ export const createHeroSpotlight = async (req, res) => {
           background_color,
           catalog_code,
           is_active,
-          display_order,
+          display_order: resolvedDisplayOrder,
         },
       ])
       .select()
@@ -69,6 +83,43 @@ export const createHeroSpotlight = async (req, res) => {
     if (error) throw error;
 
     res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const reorderHeroSpotlights = async (req, res) => {
+  const { items } = req.body;
+
+  if (!Array.isArray(items)) {
+    return res.status(400).json({ error: "items array is required" });
+  }
+
+  try {
+    for (const item of items) {
+      if (!item.id || item.display_order === undefined) {
+        return res
+          .status(400)
+          .json({ error: "Each item requires id and display_order" });
+      }
+
+      const { error } = await supabase
+        .from("hero_spotlights")
+        .update({ display_order: item.display_order })
+        .eq("id", item.id);
+
+      if (error) throw error;
+    }
+
+    const { data, error } = await supabase
+      .from("hero_spotlights")
+      .select("*")
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
