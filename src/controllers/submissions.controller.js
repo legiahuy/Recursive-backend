@@ -75,35 +75,56 @@ export const getAllSubmissions = async (req, res) => {
 };
 
 import {
-  sendAcceptanceEmail,
-  sendRejectionEmail,
+  sendDemoStatusEmail,
 } from "../services/email.service.js";
 
 export const updateSubmissionStatus = async (req, res) => {
   const { id } = req.params;
-  const { status, note, internal_note, emailMessage } = req.body;
+  const {
+    status,
+    note,
+    internal_note,
+    sendEmail,
+    emailSubject,
+    emailMessage,
+    templateKey,
+  } = req.body;
 
   try {
-    // 1. Update status in DB
+    const updates = {};
+    if (status !== undefined) updates.status = status;
+    if (note !== undefined) updates.note = note;
+    if (internal_note !== undefined) updates.internal_note = internal_note;
+
     const { data, error } = await supabase
       .from("demo_submissions")
-      .update({ status, note, internal_note })
+      .update(updates)
       .eq("id", id)
       .select()
       .single();
 
     if (error) throw error;
 
-    // 2. Send Email if status changed to rejected or accepted
     const artistName = data.artist_name || "Artist";
     const email = data.email;
+    const resolvedTemplateKey =
+      templateKey ||
+      (status === "accepted"
+        ? "demo_acceptance"
+        : status === "rejected"
+          ? "demo_rejection"
+          : status === "contacted"
+            ? "demo_contacted"
+            : undefined);
 
-    if (email) {
-      if (status === "rejected") {
-        await sendRejectionEmail(email, artistName);
-      } else if (status === "accepted") {
-        await sendAcceptanceEmail(email, artistName, emailMessage);
-      }
+    if (email && sendEmail && resolvedTemplateKey) {
+      await sendDemoStatusEmail({
+        to: email,
+        artistName,
+        templateKey: resolvedTemplateKey,
+        subject: emailSubject,
+        message: emailMessage,
+      });
     }
 
     res.json(data);

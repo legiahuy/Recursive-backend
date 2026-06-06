@@ -1,5 +1,11 @@
 import { Router } from "express";
-import { getAllGenres } from "../controllers/genres.controller.js";
+import {
+  createGenre,
+  deleteGenre,
+  getAllGenres,
+  updateGenre,
+} from "../controllers/genres.controller.js";
+import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
 
 const genresRouter = Router();
 
@@ -14,5 +20,8 @@ const genresRouter = Router();
  *         description: A list of genres.
  */
 genresRouter.get("/", getAllGenres);
+genresRouter.post("/", verifyToken, isAdmin, createGenre);
+genresRouter.put("/:id", verifyToken, isAdmin, updateGenre);
+genresRouter.delete("/:id", verifyToken, isAdmin, deleteGenre);
 
 export default genresRouter;

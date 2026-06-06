@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabase.config.js";
+import { ensureDefaultGenre } from "./genres.controller.js";
 
 export const getFeaturedReleases = async (req, res) => {
   try {
@@ -133,6 +134,9 @@ export const createRelease = async (req, res) => {
   } = req.body;
 
   try {
+    const defaultGenre = await ensureDefaultGenre();
+    const genreIds = genres && genres.length > 0 ? genres : [defaultGenre.id];
+
     // 1. Create Release
     const { data: release, error: releaseError } = await supabase
       .from("releases")
@@ -176,8 +180,8 @@ export const createRelease = async (req, res) => {
     }
 
     // 3. Insert Genres (if any)
-    if (genres && genres.length > 0) {
-      const releaseGenres = genres.map((genreId) => ({
+    if (genreIds.length > 0) {
+      const releaseGenres = genreIds.map((genreId) => ({
         release_id: release.id,
         genre_id: genreId,
       }));
@@ -217,6 +221,9 @@ export const updateRelease = async (req, res) => {
   } = req.body;
 
   try {
+    const defaultGenre = await ensureDefaultGenre();
+    const genreIds = genres && genres.length > 0 ? genres : [defaultGenre.id];
+
     // 1. Update Release details
     const { data: release, error: releaseError } = await supabase
       .from("releases")
@@ -268,8 +275,8 @@ export const updateRelease = async (req, res) => {
       await supabase.from("release_genres").delete().eq("release_id", id);
 
       // Insert new
-      if (genres.length > 0) {
-        const releaseGenres = genres.map((genreId) => ({
+      if (genreIds.length > 0) {
+        const releaseGenres = genreIds.map((genreId) => ({
           release_id: id,
           genre_id: genreId,
         }));
