@@ -185,17 +185,23 @@ export const updateSubmissionStatus = async (req, res) => {
       const { data: existing } = await supabase
         .from("pipeline_items").select("id").eq("demo_submission_id", id).maybeSingle();
       if (!existing) {
-        const { data: pipelineItem } = await supabase.from("pipeline_items")
+        const { data: pipelineItem, error: pipelineError } = await supabase.from("pipeline_items")
           .insert([{ demo_submission_id: id, stage: "accepted", track_title: null }])
           .select().single();
+        if (pipelineError) {
+          console.error("Failed to create pipeline item for demo acceptance:", pipelineError);
+        }
         if (pipelineItem) {
-          await supabase.from("pipeline_collaborators").insert([{
+          const { error: collabError } = await supabase.from("pipeline_collaborators").insert([{
             pipeline_item_id: pipelineItem.id,
             name: data.artist_name || "Artist",
             email: data.email,
             form_token: crypto.randomBytes(24).toString("base64url"),
             form_status: "invited",
           }]);
+          if (collabError) {
+            console.error("Failed to seed initial collaborator for pipeline item:", collabError);
+          }
         }
       }
     }

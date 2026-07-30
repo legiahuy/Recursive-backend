@@ -198,10 +198,14 @@ export const submitFormByToken = async (req, res) => {
       const { data: item } = await supabase.from("pipeline_items")
         .select("stage").eq("id", c.pipeline_item_id).single();
       if (item?.stage === "info_requested") {
-        await supabase.from("pipeline_items")
+        const { data: updated } = await supabase.from("pipeline_items")
           .update({ stage: "negotiation", stage_changed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-          .eq("id", c.pipeline_item_id);
-        await logEvent(c.pipeline_item_id, "info_requested", "negotiation", null, "All artist forms submitted");
+          .eq("id", c.pipeline_item_id)
+          .eq("stage", "info_requested")
+          .select();
+        if (updated && updated.length > 0) {
+          await logEvent(c.pipeline_item_id, "info_requested", "negotiation", null, "All artist forms submitted");
+        }
       }
     }
     res.status(200).json({ message: "Form submitted. Thank you!" });
