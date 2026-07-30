@@ -46,11 +46,21 @@ const fallbackTemplates = {
       <p>Best,<br/>{{labelName}} Team</p>
     `,
   },
+  pipeline_info_request: {
+    subject: "{{artistName}} – {{trackTitle}} (Recursive Recordings)",
+    body: `
+      <p>Hi {{artistName}},</p>
+      <p>Congrats — we'd love to release <strong>{{trackTitle}}</strong> on {{labelName}}. Please complete your artist info form so we can prepare everything:</p>
+      <p><a href="{{formUrl}}">Complete your artist form</a></p>
+      <p>Any questions, just reply to this email.</p>
+      <p>— {{labelName}}</p>
+    `,
+  },
 };
 
 const renderTemplate = (template, values) =>
   template.replace(
-    /{{\s*(artistName|labelName|contactEmail|referenceCode|statusUrl)\s*}}/g,
+    /{{\s*(artistName|labelName|contactEmail|referenceCode|statusUrl|trackTitle|formUrl)\s*}}/g,
     (_, key) => {
       return values[key] || "";
     },
@@ -129,6 +139,28 @@ export const sendDemoConfirmationEmail = async ({
     templateKey: "demo_received",
     referenceCode,
   });
+};
+
+const buildFormUrl = (token) =>
+  `${siteUrl.replace(/\/$/, "")}/release-form/${token}`;
+
+export const sendPipelineInfoRequestEmail = async ({
+  to,
+  artistName,
+  trackTitle,
+  token,
+}) => {
+  const template = await getDemoEmailTemplate("pipeline_info_request");
+  const values = {
+    artistName: artistName || "Artist",
+    trackTitle: trackTitle || "your track",
+    labelName,
+    contactEmail,
+    formUrl: buildFormUrl(token),
+  };
+  const subject = renderTemplate(template.subject, values);
+  const body = renderTemplate(template.body, values);
+  return sendEmail(to, subject, body);
 };
 
 export const sendRejectionEmail = async (to, artistName) => {
