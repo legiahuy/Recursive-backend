@@ -1,4 +1,16 @@
 import { supabase } from "../config/supabase.config.js";
+import {
+  sendDemoStatusEmail,
+  sendDemoConfirmationEmail,
+} from "../services/email.service.js";
+
+const PUBLIC_STATUS_LABELS = {
+  pending: "Received",
+  reviewed: "Under review",
+  contacted: "In conversation",
+  accepted: "Accepted",
+  rejected: "Not this time",
+};
 
 export const createSubmission = async (req, res) => {
   const {
@@ -40,7 +52,73 @@ export const createSubmission = async (req, res) => {
 
     if (error) throw error;
 
+    if (data?.email) {
+      try {
+        await sendDemoConfirmationEmail({
+          to: data.email,
+          artistName: data.artist_name,
+          referenceCode: data.id,
+        });
+      } catch (emailError) {
+        console.error(
+          "Failed to send demo confirmation email:",
+          emailError.message,
+        );
+      }
+    }
+
     res.status(201).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getSubmissionStatus = async (req, res) => {
+  const { ref, email } = req.query;
+
+  if (!ref || !email) {
+    return res
+      .status(400)
+      .json({ error: "Both a reference and email are required." });
+  }
+
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      String(ref).trim(),
+    );
+
+  if (!isUuid) {
+    return res.status(404).json({
+      error: "No submission matches that reference and email.",
+    });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("demo_submissions")
+      .select("artist_name, email, status, created_at")
+      .eq("id", String(ref).trim())
+      .maybeSingle();
+
+    if (error) throw error;
+
+    const matches =
+      data &&
+      typeof data.email === "string" &&
+      data.email.trim().toLowerCase() === String(email).trim().toLowerCase();
+
+    if (!matches) {
+      return res.status(404).json({
+        error: "No submission matches that reference and email.",
+      });
+    }
+
+    res.json({
+      artist_name: data.artist_name,
+      status: data.status,
+      status_label: PUBLIC_STATUS_LABELS[data.status] || "Received",
+      created_at: data.created_at,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -73,10 +151,6 @@ export const getAllSubmissions = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
-import {
-  sendDemoStatusEmail,
-} from "../services/email.service.js";
 
 export const updateSubmissionStatus = async (req, res) => {
   const { id } = req.params;

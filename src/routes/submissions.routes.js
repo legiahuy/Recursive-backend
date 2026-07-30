@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createSubmission,
+  getSubmissionStatus,
   getAllSubmissions,
   updateSubmissionStatus,
 } from "../controllers/submissions.controller.js";
@@ -41,6 +42,55 @@ const submissionsRouter = Router();
  *         description: Server error.
  */
 submissionsRouter.post("/", createSubmission);
+
+/**
+ * @swagger
+ * /demo-submission/status:
+ *   get:
+ *     summary: Check a demo submission status
+ *     description: >
+ *       Public status lookup for submitters. Requires both the submission
+ *       reference and the email used to submit; the email must match the
+ *       reference or the lookup returns 404. Only submitter-safe fields are
+ *       returned (no internal notes or contact details).
+ *     tags: [Submissions]
+ *     parameters:
+ *       - in: query
+ *         name: ref
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The submission reference (id) from the confirmation email.
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *         description: The email used when the demo was submitted.
+ *     responses:
+ *       200:
+ *         description: Submission status.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 artist_name:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 status_label:
+ *                   type: string
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Missing reference or email.
+ *       404:
+ *         description: No submission matches that reference and email.
+ */
+submissionsRouter.get("/status", getSubmissionStatus);
 
 /**
  * @swagger

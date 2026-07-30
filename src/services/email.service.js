@@ -4,8 +4,20 @@ import { supabase } from "../config/supabase.config.js";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const labelName = "Recursive Recordings";
 const contactEmail = process.env.CONTACT_EMAIL || "contact.recursive@gmail.com";
+const siteUrl = process.env.SITE_URL || "https://www.recursiverecordings.com";
 
 const fallbackTemplates = {
+  demo_received: {
+    subject: "We received your demo — Recursive Recordings",
+    body: `
+      <p>Hi {{artistName}},</p>
+      <p>Thanks for sending your demo to {{labelName}}. It's landed with our A&amp;R team and it's in the queue.</p>
+      <p>Your reference is <strong>{{referenceCode}}</strong>. Keep it safe — you can check where your submission stands at any time:</p>
+      <p><a href="{{statusUrl}}">Track your submission status</a></p>
+      <p>We listen to everything ourselves, so it takes time. Expect to hear back within about four weeks. If it's a fit, we'll reach out from {{contactEmail}} to talk next steps.</p>
+      <p>Cheers,<br/>{{labelName}} Team</p>
+    `,
+  },
   demo_acceptance: {
     subject: "Great news regarding your demo submission!",
     body: `
@@ -37,9 +49,17 @@ const fallbackTemplates = {
 };
 
 const renderTemplate = (template, values) =>
-  template.replace(/{{\s*(artistName|labelName|contactEmail)\s*}}/g, (_, key) => {
-    return values[key] || "";
-  });
+  template.replace(
+    /{{\s*(artistName|labelName|contactEmail|referenceCode|statusUrl)\s*}}/g,
+    (_, key) => {
+      return values[key] || "";
+    },
+  );
+
+const buildStatusUrl = (referenceCode, email) => {
+  const params = new URLSearchParams({ ref: referenceCode, email });
+  return `${siteUrl.replace(/\/$/, "")}/demo/status?${params.toString()}`;
+};
 
 export const sendEmail = async (to, subject, html) => {
   try {
@@ -82,17 +102,33 @@ export const sendDemoStatusEmail = async ({
   templateKey,
   subject,
   message,
+  referenceCode,
 }) => {
   const template = await getDemoEmailTemplate(templateKey);
   const values = {
     artistName: artistName || "Artist",
     labelName,
     contactEmail,
+    referenceCode: referenceCode || "",
+    statusUrl: referenceCode ? buildStatusUrl(referenceCode, to) : "",
   };
   const renderedSubject = renderTemplate(subject || template.subject, values);
   const renderedBody = renderTemplate(message || template.body, values);
 
   return sendEmail(to, renderedSubject, renderedBody);
+};
+
+export const sendDemoConfirmationEmail = async ({
+  to,
+  artistName,
+  referenceCode,
+}) => {
+  return sendDemoStatusEmail({
+    to,
+    artistName,
+    templateKey: "demo_received",
+    referenceCode,
+  });
 };
 
 export const sendRejectionEmail = async (to, artistName) => {
