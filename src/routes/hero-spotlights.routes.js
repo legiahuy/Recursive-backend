@@ -7,16 +7,16 @@ import {
   deleteHeroSpotlight,
   reorderHeroSpotlights,
 } from "../controllers/hero-spotlights.controller.js";
-import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
+import { verifyToken, isOwner } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 router.get("/all", getAllHeroSpotlights); // Admin lists all
 router.get("/", getActiveHeroSpotlight); // Public gets active
 
-router.post("/", verifyToken, isAdmin, createHeroSpotlight);
-router.patch("/reorder", verifyToken, isAdmin, reorderHeroSpotlights);
-router.put("/:id", verifyToken, isAdmin, updateHeroSpotlight);
-router.delete("/:id", verifyToken, isAdmin, deleteHeroSpotlight);
+router.post("/", verifyToken, isOwner, createHeroSpotlight);
+router.patch("/reorder", verifyToken, isOwner, reorderHeroSpotlights);
+router.put("/:id", verifyToken, isOwner, updateHeroSpotlight);
+router.delete("/:id", verifyToken, isOwner, deleteHeroSpotlight);
 
 export default router;
