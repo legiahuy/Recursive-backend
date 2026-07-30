@@ -4,12 +4,12 @@ import {
   getEmailTemplates,
   updateEmailTemplate,
 } from "../controllers/emailTemplates.controller.js";
-import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
+import { verifyToken, isOwner } from "../middleware/auth.middleware.js";
 
 const emailTemplatesRouter = Router();
 
-emailTemplatesRouter.get("/", verifyToken, isAdmin, getEmailTemplates);
-emailTemplatesRouter.get("/:key", verifyToken, isAdmin, getEmailTemplateByKey);
-emailTemplatesRouter.put("/:key", verifyToken, isAdmin, updateEmailTemplate);
+emailTemplatesRouter.get("/", verifyToken, isOwner, getEmailTemplates);
+emailTemplatesRouter.get("/:key", verifyToken, isOwner, getEmailTemplateByKey);
+emailTemplatesRouter.put("/:key", verifyToken, isOwner, updateEmailTemplate);
 
 export default emailTemplatesRouter;

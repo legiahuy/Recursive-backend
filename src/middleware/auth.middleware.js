@@ -29,9 +29,19 @@ export const verifyToken = (req, res, next) => {
 };
 
 /**
- * Middleware to check if user is admin
+ * Roles allowed into the admin area.
+ * - `owner`: full access. Legacy `admin` accounts are treated as owner.
+ * - `ar`: A&R — signing/catalog pipeline only (submissions, artists,
+ *   releases, genres). No access to marketing/comms or settings.
  */
-export const isAdmin = async (req, res, next) => {
+export const OWNER_ROLES = ["admin", "owner"];
+export const STAFF_ROLES = ["admin", "owner", "ar"];
+
+/**
+ * Factory that builds a role guard. Looks up the caller's role once and
+ * allows the request only when the role is in `allowedRoles`.
+ */
+const requireRoles = (allowedRoles) => async (req, res, next) => {
   try {
     const { data: user, error } = await supabase
       .from("users")
@@ -43,12 +53,26 @@ export const isAdmin = async (req, res, next) => {
       return res.status(404).json({ message: "User not found!" });
     }
 
-    if (user.role !== "admin") {
-      return res.status(403).json({ message: "Require Admin Role!" });
+    if (!allowedRoles.includes(user.role)) {
+      return res
+        .status(403)
+        .json({ message: "You don't have permission to perform this action." });
     }
 
+    req.userRole = user.role;
     next();
   } catch (error) {
     return res.status(500).json({ message: "Unable to validate user role!" });
   }
 };
+
+/**
+ * Any staff member (owner or A&R). Gates the shared signing/catalog routes.
+ */
+export const isAdmin = requireRoles(STAFF_ROLES);
+
+/**
+ * Owner-only. Gates marketing/comms and settings (subscribers, email
+ * templates, hero spotlights, news) that A&R must not touch.
+ */
+export const isOwner = requireRoles(OWNER_ROLES);
