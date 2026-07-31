@@ -45,6 +45,32 @@ export const getPipelineItem = async (req, res) => {
   }
 };
 
+export const createPipelineItem = async (req, res) => {
+  const { track_title, artist_name, artist_email } = req.body || {};
+  try {
+    const { data: item, error } = await supabase.from("pipeline_items")
+      .insert([{ stage: "accepted", track_title: track_title?.trim() || null }])
+      .select("id").single();
+    if (error) throw error;
+
+    if (artist_name?.trim() && artist_email?.trim()) {
+      const { error: collabErr } = await supabase.from("pipeline_collaborators").insert([{
+        pipeline_item_id: item.id, name: artist_name.trim(), email: artist_email.trim(),
+        form_token: makeToken(), form_status: "invited",
+      }]);
+      if (collabErr) console.error("Failed to seed collaborator on manual card:", collabErr.message);
+    }
+
+    const { data: full, error: fetchErr } = await supabase.from("pipeline_items")
+      .select(`${ITEM_FIELDS}, pipeline_collaborators(id, name, email, form_status, submitted_at)`)
+      .eq("id", item.id).single();
+    if (fetchErr) throw fetchErr;
+    res.status(201).json(full);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const EDITABLE = [
   "track_title", "agreed_release_date", "catalog_code", "isrc",
   "soundcloud_link", "presave_link", "cover_image_url", "notes",
@@ -77,6 +103,25 @@ export const updatePipelineItem = async (req, res) => {
     if (error) throw error;
 
     if (moved) await logEvent(id, current.stage, stage, req.userId, req.body.note);
+
+    // Email timing: when a card enters "Info Requested", send the form-link
+    // email to every collaborator still awaiting their form.
+    if (moved && stage === "info_requested") {
+      const { data: pending } = await supabase.from("pipeline_collaborators")
+        .select("name, email, form_token")
+        .eq("pipeline_item_id", id)
+        .eq("form_status", "invited");
+      for (const c of pending || []) {
+        try {
+          await sendPipelineInfoRequestEmail({
+            to: c.email, artistName: c.name, trackTitle: data.track_title, token: c.form_token,
+          });
+        } catch (mailErr) {
+          console.error("Failed to send info-request email on transition:", mailErr.message);
+        }
+      }
+    }
+
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -111,7 +156,7 @@ export const addCollaborator = async (req, res) => {
   if (!name?.trim() || !email?.trim()) return res.status(400).json({ error: "name and email are required" });
   try {
     const { data: item, error: itemErr } = await supabase
-      .from("pipeline_items").select("id, track_title").eq("id", id).single();
+      .from("pipeline_items").select("id, track_title, stage").eq("id", id).single();
     if (itemErr || !item) return res.status(404).json({ error: "Pipeline item not found" });
 
     const token = makeToken();
@@ -120,10 +165,16 @@ export const addCollaborator = async (req, res) => {
       .select().single();
     if (error) throw error;
 
-    try {
-      await sendPipelineInfoRequestEmail({ to: email, artistName: name, trackTitle: item.track_title, token });
-    } catch (mailErr) {
-      console.error("Failed to send info-request email:", mailErr.message);
+    // Only auto-send when invites for this card have already gone out
+    // (i.e. the card is currently in "Info Requested"). Otherwise stay silent —
+    // the admin sends manually via the resend button, or it goes out on the
+    // Accepted -> Info Requested transition.
+    if (item.stage === "info_requested") {
+      try {
+        await sendPipelineInfoRequestEmail({ to: email, artistName: name, trackTitle: item.track_title, token });
+      } catch (mailErr) {
+        console.error("Failed to send info-request email:", mailErr.message);
+      }
     }
     res.status(201).json(data);
   } catch (error) {
