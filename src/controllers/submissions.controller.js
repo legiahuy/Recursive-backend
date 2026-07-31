@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { supabase } from "../config/supabase.config.js";
 import {
   sendDemoStatusEmail,
@@ -178,6 +179,32 @@ export const updateSubmissionStatus = async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // On acceptance, create a pipeline item + seed the first collaborator (idempotent).
+    if (status === "accepted") {
+      const { data: existing } = await supabase
+        .from("pipeline_items").select("id").eq("demo_submission_id", id).maybeSingle();
+      if (!existing) {
+        const { data: pipelineItem, error: pipelineError } = await supabase.from("pipeline_items")
+          .insert([{ demo_submission_id: id, stage: "accepted", track_title: null }])
+          .select().single();
+        if (pipelineError) {
+          console.error("Failed to create pipeline item for demo acceptance:", pipelineError);
+        }
+        if (pipelineItem) {
+          const { error: collabError } = await supabase.from("pipeline_collaborators").insert([{
+            pipeline_item_id: pipelineItem.id,
+            name: data.artist_name || "Artist",
+            email: data.email,
+            form_token: crypto.randomBytes(24).toString("base64url"),
+            form_status: "invited",
+          }]);
+          if (collabError) {
+            console.error("Failed to seed initial collaborator for pipeline item:", collabError);
+          }
+        }
+      }
+    }
 
     const artistName = data.artist_name || "Artist";
     const email = data.email;

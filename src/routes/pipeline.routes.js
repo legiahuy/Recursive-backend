@@ -1,0 +1,24 @@
+import { Router } from "express";
+import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
+import {
+  getPipeline, getPipelineItem, updatePipelineItem, cancelPipelineItem,
+  addCollaborator, resendCollaborator, removeCollaborator,
+  getFormByToken, submitFormByToken,
+} from "../controllers/pipeline.controller.js";
+
+const pipelineRouter = Router();
+
+// Public token-gated form (MUST be registered before admin-guarded routes)
+pipelineRouter.get("/form/:token", getFormByToken);
+pipelineRouter.post("/form/:token", submitFormByToken);
+
+// Admin (any staff: owner/admin/ar)
+pipelineRouter.get("/", verifyToken, isAdmin, getPipeline);
+pipelineRouter.get("/:id", verifyToken, isAdmin, getPipelineItem);
+pipelineRouter.patch("/:id", verifyToken, isAdmin, updatePipelineItem);
+pipelineRouter.post("/:id/cancel", verifyToken, isAdmin, cancelPipelineItem);
+pipelineRouter.post("/:id/collaborators", verifyToken, isAdmin, addCollaborator);
+pipelineRouter.post("/:id/collaborators/:cid/resend", verifyToken, isAdmin, resendCollaborator);
+pipelineRouter.delete("/:id/collaborators/:cid", verifyToken, isAdmin, removeCollaborator);
+
+export default pipelineRouter;
