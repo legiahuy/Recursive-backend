@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
 import {
-  getPipeline, getPipelineItem, updatePipelineItem, cancelPipelineItem,
+  getPipeline, getPipelineItem, createPipelineItem, updatePipelineItem, cancelPipelineItem,
   addCollaborator, resendCollaborator, removeCollaborator,
   getFormByToken, submitFormByToken,
 } from "../controllers/pipeline.controller.js";
@@ -14,6 +14,7 @@ pipelineRouter.post("/form/:token", submitFormByToken);
 
 // Admin (any staff: owner/admin/ar)
 pipelineRouter.get("/", verifyToken, isAdmin, getPipeline);
+pipelineRouter.post("/", verifyToken, isAdmin, createPipelineItem);
 pipelineRouter.get("/:id", verifyToken, isAdmin, getPipelineItem);
 pipelineRouter.patch("/:id", verifyToken, isAdmin, updatePipelineItem);
 pipelineRouter.post("/:id/cancel", verifyToken, isAdmin, cancelPipelineItem);
