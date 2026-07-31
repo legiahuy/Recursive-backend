@@ -4,6 +4,7 @@ import { supabase } from "../config/supabase.config.js";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const labelName = "Recursive Recordings";
 const contactEmail = process.env.CONTACT_EMAIL || "contact.recursive@gmail.com";
+const replyToEmail = process.env.EMAIL_REPLY_TO || contactEmail;
 const siteUrl = process.env.SITE_URL || "https://www.recursiverecordings.com";
 
 const fallbackTemplates = {
@@ -78,6 +79,7 @@ export const sendEmail = async (to, subject, html) => {
         process.env.EMAIL_FROM ||
         "Recursive Recordings <noreply@demos.recursiverecordings.com>",
       to: [to],
+      replyTo: replyToEmail,
       subject,
       html,
     });
