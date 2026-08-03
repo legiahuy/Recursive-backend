@@ -24,7 +24,9 @@ const fallbackTemplates = {
     body: `
       <p>Hi {{artistName}},</p>
       <p>We have listened to your demo and we really like what we hear.</p>
-      <p>We would love to discuss a potential release with you. Our team will reach out from {{contactEmail}} to discuss the release process and next steps.</p>
+      <p>We would love to release your track. To get started, please complete a quick intake form with your track title and any collaborators (their name and email) so we can prepare your release forms:</p>
+      <p><a href="{{intakeUrl}}">Start your release intake</a></p>
+      <p>Once you submit, our team will reach out from {{contactEmail}} with the next steps.</p>
       <p>Cheers,<br/>{{labelName}} Team</p>
     `,
   },
@@ -61,7 +63,7 @@ const fallbackTemplates = {
 
 const renderTemplate = (template, values) =>
   template.replace(
-    /{{\s*(artistName|labelName|contactEmail|referenceCode|statusUrl|trackTitle|formUrl)\s*}}/g,
+    /{{\s*(artistName|labelName|contactEmail|referenceCode|statusUrl|trackTitle|formUrl|intakeUrl)\s*}}/g,
     (_, key) => {
       return values[key] || "";
     },
@@ -71,6 +73,9 @@ const buildStatusUrl = (referenceCode, email) => {
   const params = new URLSearchParams({ ref: referenceCode, email });
   return `${siteUrl.replace(/\/$/, "")}/demo/status?${params.toString()}`;
 };
+
+const buildIntakeUrl = (token) =>
+  `${siteUrl.replace(/\/$/, "")}/release-intake/${token}`;
 
 export const sendEmail = async (to, subject, html) => {
   try {
@@ -115,6 +120,7 @@ export const sendDemoStatusEmail = async ({
   subject,
   message,
   referenceCode,
+  intakeToken,
 }) => {
   const template = await getDemoEmailTemplate(templateKey);
   const values = {
@@ -123,6 +129,7 @@ export const sendDemoStatusEmail = async ({
     contactEmail,
     referenceCode: referenceCode || "",
     statusUrl: referenceCode ? buildStatusUrl(referenceCode, to) : "",
+    intakeUrl: intakeToken ? buildIntakeUrl(intakeToken) : "",
   };
   const renderedSubject = renderTemplate(subject || template.subject, values);
   const renderedBody = renderTemplate(message || template.body, values);
