@@ -123,3 +123,34 @@ test("buildContractDoc: is deterministic (no Date.now inside)", () => {
   const b = JSON.stringify(buildContractDoc(baseData()));
   assert.equal(a, b);
 });
+
+const collectCanvasNodes = (node, acc = []) => {
+  if (Array.isArray(node)) {
+    for (const n of node) collectCanvasNodes(n, acc);
+  } else if (node && typeof node === "object") {
+    if (node.canvas) acc.push(node);
+    if (node.stack) collectCanvasNodes(node.stack, acc);
+  }
+  return acc;
+};
+
+test("buildContractDoc: divider nodes are unique references (pdfmake mutates in place)", () => {
+  // Regression: a shared module-level divider object embedded multiple times / across
+  // renders caused pdfmake to throw "otherArray.forEach is not a function" on reuse.
+  const within = collectCanvasNodes(buildContractDoc(baseData()).content);
+  assert.ok(within.length >= 3, "expected at least 3 divider nodes");
+  assert.equal(new Set(within).size, within.length, "dividers within one doc must be distinct");
+
+  const second = collectCanvasNodes(buildContractDoc(baseData()).content);
+  for (const a of within) {
+    for (const b of second) assert.notEqual(a, b, "dividers must not be shared across renders");
+  }
+});
+
+test("buildContractDoc: embeds owner signature image when supplied", () => {
+  const dataUrl = "data:image/png;base64,AAAA";
+  const s = JSON.stringify(
+    buildContractDoc(baseData({ label: { name: "Recursive Recordings", owner: "Le Gia Huy", email: "x@y.com", signatureImage: dataUrl } })),
+  );
+  assert.match(s, /data:image\/png;base64,AAAA/);
+});

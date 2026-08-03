@@ -14,11 +14,40 @@ pdfMake.addVirtualFileSystem(pdfFonts);
 
 const CONTRACTS_BUCKET = "contracts";
 const SIGNED_URL_TTL = 300; // seconds
+const OWNER_SIGNATURE_OBJECT = "_assets/owner-signature.png";
 
 const LABEL = {
   name: "Recursive Recordings",
   owner: "Le Gia Huy",
   email: "contact@recursiverecordings.com",
+};
+
+// The owner's signature is embedded into every contract so it never needs manual signing.
+// Source (in priority order): the OWNER_SIGNATURE_DATA_URL env var (a full data: URL), or
+// a PNG uploaded to the private contracts bucket at `_assets/owner-signature.png`.
+// Cached in-process after the first load; replace the file + redeploy to refresh.
+let ownerSignatureCache; // undefined = not loaded; null = loaded-but-absent; string = data URL
+const getOwnerSignature = async () => {
+  if (ownerSignatureCache !== undefined) return ownerSignatureCache || undefined;
+  if (process.env.OWNER_SIGNATURE_DATA_URL) {
+    ownerSignatureCache = process.env.OWNER_SIGNATURE_DATA_URL;
+    return ownerSignatureCache;
+  }
+  try {
+    const { data, error } = await supabase.storage
+      .from(CONTRACTS_BUCKET)
+      .download(OWNER_SIGNATURE_OBJECT);
+    if (error || !data) {
+      ownerSignatureCache = null;
+      return undefined;
+    }
+    const base64 = Buffer.from(await data.arrayBuffer()).toString("base64");
+    ownerSignatureCache = `data:image/png;base64,${base64}`;
+    return ownerSignatureCache;
+  } catch {
+    ownerSignatureCache = null;
+    return undefined;
+  }
 };
 
 class ContractError extends Error {
@@ -72,8 +101,9 @@ export const generateContract = async (pipelineItemId, { effectiveDate }) => {
     );
   }
 
+  const signatureImage = await getOwnerSignature();
   const data = {
-    label: LABEL,
+    label: { ...LABEL, signatureImage },
     trackTitle: item.track_title,
     effectiveDate,
     expectedReleaseDate: item.agreed_release_date,
