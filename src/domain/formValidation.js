@@ -10,14 +10,19 @@ const isHttpUrl = (v) => {
 
 const nonEmpty = (v) => typeof v === "string" && v.trim().length > 0;
 
-const validateDsp = (key, entry, errors, { required = false } = {}) => {
+const validateDsp = (key, entry, errors, { required = false, mustHaveUrl = false } = {}) => {
   const e = entry || {};
+  if (mustHaveUrl) {
+    // No "create new" option — a real profile URL is always required.
+    if (!isHttpUrl(e.url)) errors.push(`dsp.${key}: a valid profile URL is required`);
+    return;
+  }
   if (e.has === true) {
     if (!isHttpUrl(e.url)) errors.push(`dsp.${key}: valid profile URL required`);
   } else if (e.createNew === true) {
     // ok — will create a new profile
   } else {
-    if (required) errors.push(`dsp.${key}: soundcloud is required (link or create new)`);
+    if (required) errors.push(`dsp.${key}: ${key} is required (link or create new)`);
     else errors.push(`dsp.${key}: choose a profile link or "create new"`);
   }
 };
@@ -40,7 +45,7 @@ export const validateFormSubmission = (data) => {
   const dsp = d.dsp || {};
   validateDsp("spotify", dsp.spotify, errors);
   validateDsp("apple", dsp.apple, errors);
-  validateDsp("soundcloud", dsp.soundcloud, errors, { required: true });
+  validateDsp("soundcloud", dsp.soundcloud, errors, { required: true, mustHaveUrl: true });
 
   const ig = d.instagram || {};
   if (ig.notUsed !== true && !isHttpUrl(ig.url)) {

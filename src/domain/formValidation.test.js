@@ -54,6 +54,20 @@ test("soundcloud cannot be skipped entirely", () => {
   assert.ok(r.errors.some((e) => e.includes("soundcloud")));
 });
 
+test("soundcloud rejects createNew — a real URL is always required", () => {
+  const d = base(); d.dsp.soundcloud = { has: false, createNew: true };
+  const r = validateFormSubmission(d);
+  assert.equal(r.valid, false);
+  assert.ok(r.errors.some((e) => e.includes("soundcloud")));
+});
+
+test("soundcloud requires a valid http(s) URL", () => {
+  const d = base(); d.dsp.soundcloud = { has: true, url: "not-a-url" };
+  const r = validateFormSubmission(d);
+  assert.equal(r.valid, false);
+  assert.ok(r.errors.some((e) => e.includes("soundcloud")));
+});
+
 test("instagram notUsed passes without url", () => {
   const d = base(); d.instagram = { notUsed: true };
   assert.equal(validateFormSubmission(d).valid, true);
