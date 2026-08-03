@@ -172,12 +172,18 @@ const partyBlock = (a) => ({
   margin: [0, 0, 0, 10],
 });
 
+const SIGN_WIDTH = 150; // signature display width (pt)
+// Blank-signature top margin, tuned so a manual-signature block is as tall as the
+// embedded-image block: image contributes ~8 + ~75 (image height at SIGN_WIDTH) + 2;
+// the spacer's own line adds ~12.5, so 70 + 12.5 + 2 ≈ the image's ~85.
+const SIGN_SPACE_MARGIN = 70;
+
 const signatureBlock = (title, name, signatureImage) => {
-  // Leave room to sign: embed the owner's signature image when supplied,
-  // otherwise reserve blank vertical space above the line for a manual signature.
+  // Leave equal room to sign in every block: embed the owner's signature image when
+  // supplied, otherwise reserve matching blank vertical space above the line.
   const signingSpace = signatureImage
-    ? { image: signatureImage, width: 150, margin: [0, 8, 0, 2] }
-    : { text: " ", margin: [0, 30, 0, 2] };
+    ? { image: signatureImage, width: SIGN_WIDTH, margin: [0, 8, 0, 2] }
+    : { text: " ", margin: [0, SIGN_SPACE_MARGIN, 0, 2] };
   return {
     stack: [
       { text: title, bold: true, margin: [0, 12, 0, 0] },
