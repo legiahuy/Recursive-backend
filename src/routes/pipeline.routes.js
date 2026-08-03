@@ -4,6 +4,7 @@ import {
   getPipeline, getPipelineItem, createPipelineItem, updatePipelineItem, cancelPipelineItem,
   addCollaborator, resendCollaborator, removeCollaborator,
   getFormByToken, submitFormByToken,
+  getIntakeByToken, submitIntakeByToken,
 } from "../controllers/pipeline.controller.js";
 
 const pipelineRouter = Router();
@@ -11,6 +12,8 @@ const pipelineRouter = Router();
 // Public token-gated form (MUST be registered before admin-guarded routes)
 pipelineRouter.get("/form/:token", getFormByToken);
 pipelineRouter.post("/form/:token", submitFormByToken);
+pipelineRouter.get("/intake/:token", getIntakeByToken);
+pipelineRouter.post("/intake/:token", submitIntakeByToken);
 
 // Admin (any staff: owner/admin/ar)
 pipelineRouter.get("/", verifyToken, isAdmin, getPipeline);

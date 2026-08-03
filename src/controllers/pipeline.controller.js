@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { supabase } from "../config/supabase.config.js";
 import { canTransition, isValidStage } from "../domain/pipelineStages.js";
 import { validateFormSubmission } from "../domain/formValidation.js";
+import { validateIntake } from "../domain/intakeValidation.js";
 import { sendPipelineInfoRequestEmail } from "../services/email.service.js";
 
 const ITEM_FIELDS =
@@ -261,6 +262,70 @@ export const submitFormByToken = async (req, res) => {
       }
     }
     res.status(200).json({ message: "Form submitted. Thank you!" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getIntakeByToken = async (req, res) => {
+  try {
+    const { data: item, error } = await supabase.from("pipeline_items")
+      .select("id, track_title, intake_status, pipeline_collaborators(name, email, invited_at)")
+      .eq("intake_token", req.params.token).single();
+    if (error || !item) return res.status(404).json({ error: "Intake not found" });
+
+    const collaborators = Array.isArray(item.pipeline_collaborators) ? item.pipeline_collaborators : [];
+    const primary = collaborators
+      .slice()
+      .sort((a, b) => new Date(a.invited_at || 0) - new Date(b.invited_at || 0))[0];
+
+    res.status(200).json({
+      state: item.intake_status === "received" ? "already_submitted" : "form",
+      primaryArtistName: primary?.name || "Artist",
+      trackTitle: item.track_title || "",
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const submitIntakeByToken = async (req, res) => {
+  const { token } = req.params;
+  try {
+    const { data: item, error } = await supabase.from("pipeline_items")
+      .select("id, intake_status, pipeline_collaborators(email)")
+      .eq("intake_token", token).single();
+    if (error || !item) return res.status(404).json({ error: "Intake not found" });
+    if (item.intake_status === "received")
+      return res.status(409).json({ error: "This intake has already been submitted" });
+
+    const existingEmails = (item.pipeline_collaborators || []).map((c) => c.email);
+    const { valid, errors, normalized } = validateIntake(req.body, { existingEmails });
+    if (!valid) return res.status(400).json({ error: "Validation failed", details: errors });
+
+    const { error: titleErr } = await supabase.from("pipeline_items")
+      .update({ track_title: normalized.trackTitle, updated_at: new Date().toISOString() })
+      .eq("id", item.id);
+    if (titleErr) throw titleErr;
+
+    if (normalized.collaborators.length) {
+      const rows = normalized.collaborators.map((c) => ({
+        pipeline_item_id: item.id,
+        name: c.name,
+        email: c.email,
+        form_token: makeToken(),
+        form_status: "invited",
+      }));
+      const { error: collabErr } = await supabase.from("pipeline_collaborators").insert(rows);
+      if (collabErr) throw collabErr;
+    }
+
+    const { error: statusErr } = await supabase.from("pipeline_items")
+      .update({ intake_status: "received", intake_submitted_at: new Date().toISOString() })
+      .eq("id", item.id);
+    if (statusErr) throw statusErr;
+
+    res.status(200).json({ message: "Intake submitted. Thank you!" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
