@@ -114,7 +114,7 @@ export const generateContract = async (pipelineItemId, { effectiveDate }) => {
     effectiveDate,
     warning: royalty.balanced
       ? undefined
-      : `Artist splits total ${royalty.artistsTotal}% — expected 50%.`,
+      : `Artist splits total ${royalty.artistsTotal}% — expected 100%.`,
   };
 };
 

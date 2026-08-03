@@ -7,7 +7,7 @@ const artist = (over = {}) => ({
   legalName: "Elizabeth Doe",
   nationality: "France",
   email: "lizzi@example.com",
-  splitPercent: 50,
+  splitPercent: 100,
   ...over,
 });
 
@@ -20,15 +20,25 @@ const baseData = (over = {}) => ({
   ...over,
 });
 
-test("summarizeRoyalty: label always 50, balanced when artists sum to 50", () => {
-  const r = summarizeRoyalty([artist({ splitPercent: 50 })]);
+test("summarizeRoyalty: label always 50, solo artist (100%) balanced, master share halved", () => {
+  const r = summarizeRoyalty([artist({ splitPercent: 100 })]);
   assert.equal(r.labelPercent, 50);
-  assert.equal(r.artistsTotal, 50);
+  assert.equal(r.artistsTotal, 100);
   assert.equal(r.balanced, true);
-  assert.deepEqual(r.artistRows, [{ alias: "Lizzi", percent: 50 }]);
+  assert.deepEqual(r.artistRows, [{ alias: "Lizzi", share: 100, percent: 50 }]);
 });
 
-test("summarizeRoyalty: unbalanced when artists don't sum to 50", () => {
+test("summarizeRoyalty: balanced multi-artist splits the 50% pool proportionally", () => {
+  const r = summarizeRoyalty([artist({ splitPercent: 60 }), artist({ alias: "Coco", splitPercent: 40 })]);
+  assert.equal(r.artistsTotal, 100);
+  assert.equal(r.balanced, true);
+  assert.deepEqual(r.artistRows, [
+    { alias: "Lizzi", share: 60, percent: 30 },
+    { alias: "Coco", share: 40, percent: 20 },
+  ]);
+});
+
+test("summarizeRoyalty: unbalanced when artist splits don't sum to 100", () => {
   const r = summarizeRoyalty([artist({ splitPercent: 30 }), artist({ alias: "Coco", splitPercent: 30 })]);
   assert.equal(r.artistsTotal, 60);
   assert.equal(r.balanced, false);
@@ -86,7 +96,7 @@ test("buildContractDoc: unbalanced splits add a warning note", () => {
 });
 
 test("buildContractDoc: balanced splits do NOT add the warning note", () => {
-  const s = JSON.stringify(buildContractDoc(baseData({ artists: [artist({ splitPercent: 50 })] })));
+  const s = JSON.stringify(buildContractDoc(baseData({ artists: [artist({ splitPercent: 100 })] })));
   assert.doesNotMatch(s, /Artist splits total/i);
 });
 
@@ -101,6 +111,11 @@ test("buildContractDoc: missing artist fields render an em dash, not undefined",
   const s = JSON.stringify(doc);
   assert.doesNotMatch(s, /undefined/);
   assert.match(s, /—/);
+});
+
+test("buildContractDoc: calendar-invalid effectiveDate never prints 'undefined'", () => {
+  const s = JSON.stringify(buildContractDoc(baseData({ effectiveDate: "2026-13-45" })));
+  assert.doesNotMatch(s, /undefined/);
 });
 
 test("buildContractDoc: is deterministic (no Date.now inside)", () => {

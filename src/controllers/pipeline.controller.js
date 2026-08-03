@@ -344,11 +344,15 @@ export const submitIntakeByToken = async (req, res) => {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Format check + calendar round-trip (rejects e.g. 2026-13-45 which the regex alone accepts).
+const isValidDate = (s) =>
+  DATE_RE.test(s) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s;
+
 export const generateContractHandler = async (req, res) => {
   try {
     const effectiveDate = req.body?.effectiveDate || new Date().toISOString().slice(0, 10);
-    if (!DATE_RE.test(effectiveDate))
-      return res.status(400).json({ error: "effectiveDate must be YYYY-MM-DD" });
+    if (!isValidDate(effectiveDate))
+      return res.status(400).json({ error: "effectiveDate must be a valid YYYY-MM-DD date" });
 
     const result = await generateContract(req.params.id, { effectiveDate });
     res.status(200).json(result);

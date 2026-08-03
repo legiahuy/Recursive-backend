@@ -8,6 +8,9 @@ const num = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+// Round to at most 2 decimals, dropping trailing zeros (e.g. 15, 16.67).
+const round2 = (n) => Math.round(n * 100) / 100;
+
 const dash = (v) => (typeof v === "string" && v.trim() ? v.trim() : "—");
 
 // Human-readable date: accepts "YYYY-MM-DD"; falls back to the raw value or a label.
@@ -16,6 +19,7 @@ const humanDate = (iso, fallback = "to be confirmed") => {
   const MONTHS = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
   const [y, m, d] = iso.split("-").map(Number);
+  if (m < 1 || m > 12 || d < 1 || d > 31) return iso;
   return `${MONTHS[m - 1]} ${d}, ${y}`;
 };
 
@@ -26,10 +30,17 @@ const joinAliases = (artists) => {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 };
 
+// The release form collects each collaborator's `split_percent` as their share of the
+// ARTIST side, summing to 100 across collaborators. The label always takes 50% of the
+// master; artists split the remaining 50% proportionally, so an artist's share of the
+// whole = split_percent * 0.5. The royalty table therefore totals 100% (label 50 + artists 50).
 export const summarizeRoyalty = (artists = []) => {
-  const artistRows = artists.map((a) => ({ alias: a.alias, percent: num(a.splitPercent) }));
-  const artistsTotal = artistRows.reduce((sum, r) => sum + r.percent, 0);
-  return { labelPercent: 50, artistRows, artistsTotal, balanced: artistsTotal === 50 };
+  const artistRows = artists.map((a) => {
+    const share = num(a.splitPercent);
+    return { alias: a.alias, share, percent: round2(share * 0.5) };
+  });
+  const artistsTotal = round2(artistRows.reduce((sum, r) => sum + r.share, 0));
+  return { labelPercent: 50, artistRows, artistsTotal, balanced: artistsTotal === 100 };
 };
 
 // ── Verbatim legal clauses ──────────────────────────────────────────────────
@@ -242,7 +253,7 @@ export const buildContractDoc = (data) => {
   });
   if (!royalty.balanced) {
     content.push({
-      text: `Note: Artist splits total ${royalty.artistsTotal}% — expected 50%. Verify before signing.`,
+      text: `Note: Artist splits total ${royalty.artistsTotal}% — expected 100%. Verify before signing.`,
       italics: true,
       color: "#b45309",
       margin: [0, 6, 0, 0],
