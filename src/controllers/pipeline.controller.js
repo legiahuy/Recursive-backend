@@ -2,12 +2,14 @@ import crypto from "crypto";
 import { supabase } from "../config/supabase.config.js";
 import { canTransition, isValidStage } from "../domain/pipelineStages.js";
 import { validateFormSubmission } from "../domain/formValidation.js";
+import { validateIntake } from "../domain/intakeValidation.js";
 import { sendPipelineInfoRequestEmail } from "../services/email.service.js";
 
 const ITEM_FIELDS =
   "id, demo_submission_id, release_id, stage, track_title, agreed_release_date, " +
   "catalog_code, isrc, soundcloud_link, presave_link, cover_image_url, notes, " +
-  "cancel_reason, stage_changed_at, created_at, updated_at";
+  "cancel_reason, intake_token, intake_status, intake_submitted_at, " +
+  "stage_changed_at, created_at, updated_at";
 
 const makeToken = () => crypto.randomBytes(24).toString("base64url");
 
@@ -49,7 +51,7 @@ export const createPipelineItem = async (req, res) => {
   const { track_title, artist_name, artist_email } = req.body || {};
   try {
     const { data: item, error } = await supabase.from("pipeline_items")
-      .insert([{ stage: "accepted", track_title: track_title?.trim() || null }])
+      .insert([{ stage: "accepted", track_title: track_title?.trim() || null, intake_token: makeToken() }])
       .select("id").single();
     if (error) throw error;
 
@@ -260,6 +262,79 @@ export const submitFormByToken = async (req, res) => {
       }
     }
     res.status(200).json({ message: "Form submitted. Thank you!" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getIntakeByToken = async (req, res) => {
+  try {
+    const { data: item, error } = await supabase.from("pipeline_items")
+      .select("id, track_title, intake_status, pipeline_collaborators(name, email, invited_at)")
+      .eq("intake_token", req.params.token).single();
+    if (error || !item) return res.status(404).json({ error: "Intake not found" });
+
+    const collaborators = Array.isArray(item.pipeline_collaborators) ? item.pipeline_collaborators : [];
+    const primary = collaborators
+      .slice()
+      .sort((a, b) => new Date(a.invited_at || 0) - new Date(b.invited_at || 0))[0];
+
+    res.status(200).json({
+      state: item.intake_status === "received" ? "already_submitted" : "form",
+      primaryArtistName: primary?.name || "Artist",
+      trackTitle: item.track_title || "",
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const submitIntakeByToken = async (req, res) => {
+  const { token } = req.params;
+  try {
+    const { data: item, error } = await supabase.from("pipeline_items")
+      .select("id, intake_status, pipeline_collaborators(email)")
+      .eq("intake_token", token).single();
+    if (error || !item) return res.status(404).json({ error: "Intake not found" });
+    if (item.intake_status === "received")
+      return res.status(409).json({ error: "This intake has already been submitted" });
+
+    const existingEmails = (item.pipeline_collaborators || []).map((c) => c.email);
+    const { valid, errors, normalized } = validateIntake(req.body, { existingEmails });
+    if (!valid) return res.status(400).json({ error: "Validation failed", details: errors });
+
+    // Atomically claim the one-shot lock BEFORE inserting anything: flip
+    // intake_status pending→received (and set track_title) in a single guarded
+    // update. If 0 rows match, another submission already claimed it → 409. This
+    // prevents duplicate collaborator inserts on retry/concurrent submits.
+    const now = new Date().toISOString();
+    const { data: claimed, error: claimErr } = await supabase.from("pipeline_items")
+      .update({
+        intake_status: "received",
+        intake_submitted_at: now,
+        track_title: normalized.trackTitle,
+        updated_at: now,
+      })
+      .eq("id", item.id)
+      .eq("intake_status", "pending")
+      .select("id");
+    if (claimErr) throw claimErr;
+    if (!claimed || claimed.length === 0)
+      return res.status(409).json({ error: "This intake has already been submitted" });
+
+    if (normalized.collaborators.length) {
+      const rows = normalized.collaborators.map((c) => ({
+        pipeline_item_id: item.id,
+        name: c.name,
+        email: c.email,
+        form_token: makeToken(),
+        form_status: "invited",
+      }));
+      const { error: collabErr } = await supabase.from("pipeline_collaborators").insert(rows);
+      if (collabErr) throw collabErr;
+    }
+
+    res.status(200).json({ message: "Intake submitted. Thank you!" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
