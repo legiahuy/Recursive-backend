@@ -303,10 +303,24 @@ export const submitIntakeByToken = async (req, res) => {
     const { valid, errors, normalized } = validateIntake(req.body, { existingEmails });
     if (!valid) return res.status(400).json({ error: "Validation failed", details: errors });
 
-    const { error: titleErr } = await supabase.from("pipeline_items")
-      .update({ track_title: normalized.trackTitle, updated_at: new Date().toISOString() })
-      .eq("id", item.id);
-    if (titleErr) throw titleErr;
+    // Atomically claim the one-shot lock BEFORE inserting anything: flip
+    // intake_status pending→received (and set track_title) in a single guarded
+    // update. If 0 rows match, another submission already claimed it → 409. This
+    // prevents duplicate collaborator inserts on retry/concurrent submits.
+    const now = new Date().toISOString();
+    const { data: claimed, error: claimErr } = await supabase.from("pipeline_items")
+      .update({
+        intake_status: "received",
+        intake_submitted_at: now,
+        track_title: normalized.trackTitle,
+        updated_at: now,
+      })
+      .eq("id", item.id)
+      .eq("intake_status", "pending")
+      .select("id");
+    if (claimErr) throw claimErr;
+    if (!claimed || claimed.length === 0)
+      return res.status(409).json({ error: "This intake has already been submitted" });
 
     if (normalized.collaborators.length) {
       const rows = normalized.collaborators.map((c) => ({
@@ -319,11 +333,6 @@ export const submitIntakeByToken = async (req, res) => {
       const { error: collabErr } = await supabase.from("pipeline_collaborators").insert(rows);
       if (collabErr) throw collabErr;
     }
-
-    const { error: statusErr } = await supabase.from("pipeline_items")
-      .update({ intake_status: "received", intake_submitted_at: new Date().toISOString() })
-      .eq("id", item.id);
-    if (statusErr) throw statusErr;
 
     res.status(200).json({ message: "Intake submitted. Thank you!" });
   } catch (error) {

@@ -187,6 +187,18 @@ export const updateSubmissionStatus = async (req, res) => {
         .from("pipeline_items").select("id, intake_token").eq("demo_submission_id", id).maybeSingle();
       if (existing) {
         intakeToken = existing.intake_token || null;
+        // Backfill a token for pre-migration cards that have none, so the
+        // acceptance email never renders an empty intake link.
+        if (!intakeToken) {
+          const backfillToken = crypto.randomBytes(24).toString("base64url");
+          const { error: backfillError } = await supabase.from("pipeline_items")
+            .update({ intake_token: backfillToken }).eq("id", existing.id);
+          if (backfillError) {
+            console.error("Failed to backfill intake_token for pipeline item:", backfillError);
+          } else {
+            intakeToken = backfillToken;
+          }
+        }
       } else {
         const newIntakeToken = crypto.randomBytes(24).toString("base64url");
         const { data: pipelineItem, error: pipelineError } = await supabase.from("pipeline_items")
