@@ -7,7 +7,8 @@ import { sendPipelineInfoRequestEmail } from "../services/email.service.js";
 const ITEM_FIELDS =
   "id, demo_submission_id, release_id, stage, track_title, agreed_release_date, " +
   "catalog_code, isrc, soundcloud_link, presave_link, cover_image_url, notes, " +
-  "cancel_reason, stage_changed_at, created_at, updated_at";
+  "cancel_reason, intake_token, intake_status, intake_submitted_at, " +
+  "stage_changed_at, created_at, updated_at";
 
 const makeToken = () => crypto.randomBytes(24).toString("base64url");
 
@@ -49,7 +50,7 @@ export const createPipelineItem = async (req, res) => {
   const { track_title, artist_name, artist_email } = req.body || {};
   try {
     const { data: item, error } = await supabase.from("pipeline_items")
-      .insert([{ stage: "accepted", track_title: track_title?.trim() || null }])
+      .insert([{ stage: "accepted", track_title: track_title?.trim() || null, intake_token: makeToken() }])
       .select("id").single();
     if (error) throw error;
 

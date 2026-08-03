@@ -181,17 +181,22 @@ export const updateSubmissionStatus = async (req, res) => {
     if (error) throw error;
 
     // On acceptance, create a pipeline item + seed the first collaborator (idempotent).
+    let intakeToken = null;
     if (status === "accepted") {
       const { data: existing } = await supabase
-        .from("pipeline_items").select("id").eq("demo_submission_id", id).maybeSingle();
-      if (!existing) {
+        .from("pipeline_items").select("id, intake_token").eq("demo_submission_id", id).maybeSingle();
+      if (existing) {
+        intakeToken = existing.intake_token || null;
+      } else {
+        const newIntakeToken = crypto.randomBytes(24).toString("base64url");
         const { data: pipelineItem, error: pipelineError } = await supabase.from("pipeline_items")
-          .insert([{ demo_submission_id: id, stage: "accepted", track_title: null }])
+          .insert([{ demo_submission_id: id, stage: "accepted", track_title: null, intake_token: newIntakeToken }])
           .select().single();
         if (pipelineError) {
           console.error("Failed to create pipeline item for demo acceptance:", pipelineError);
         }
         if (pipelineItem) {
+          intakeToken = pipelineItem.intake_token || newIntakeToken;
           const { error: collabError } = await supabase.from("pipeline_collaborators").insert([{
             pipeline_item_id: pipelineItem.id,
             name: data.artist_name || "Artist",
@@ -225,6 +230,7 @@ export const updateSubmissionStatus = async (req, res) => {
         templateKey: resolvedTemplateKey,
         subject: emailSubject,
         message: emailMessage,
+        intakeToken: resolvedTemplateKey === "demo_acceptance" ? intakeToken : undefined,
       });
     }
 
