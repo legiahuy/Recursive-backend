@@ -5,6 +5,7 @@ import { validateFormSubmission } from "./formValidation.js";
 const base = () => ({
   legal_name: "Jane Doe", artist_name: "Jane", country: "US",
   track_title: "Nightfall", genre: "House", explicit: false,
+  audio_link: "https://drive.google.com/drive/folders/abc123",
   role: "Producer", split_percent: 100, collaborators: "",
   rights_attestation: true,
   dsp: {
@@ -12,6 +13,7 @@ const base = () => ({
     apple: { has: false, createNew: true },
     soundcloud: { has: true, url: "https://soundcloud.com/jane" },
   },
+  youtube_url: "",
   instagram: { url: "https://instagram.com/jane" },
   bio: "Producer from NYC.", press_photo_url: "https://cdn/x.jpg",
 });
@@ -66,6 +68,44 @@ test("soundcloud requires a valid http(s) URL", () => {
   const r = validateFormSubmission(d);
   assert.equal(r.valid, false);
   assert.ok(r.errors.some((e) => e.includes("soundcloud")));
+});
+
+test("audio_link is required", () => {
+  const d = base(); d.audio_link = "";
+  const r = validateFormSubmission(d);
+  assert.equal(r.valid, false);
+  assert.ok(r.errors.some((e) => e.includes("audio_link")));
+});
+
+test("audio_link accepts Dropbox", () => {
+  const d = base(); d.audio_link = "https://www.dropbox.com/scl/fo/xyz";
+  assert.equal(validateFormSubmission(d).valid, true);
+});
+
+test("audio_link rejects WeTransfer and other non-allowed hosts", () => {
+  const d = base(); d.audio_link = "https://wetransfer.com/downloads/abc";
+  const r = validateFormSubmission(d);
+  assert.equal(r.valid, false);
+  assert.ok(r.errors.some((e) => e.includes("audio_link")));
+});
+
+test("audio_link rejects a non-URL string", () => {
+  const d = base(); d.audio_link = "drive.google.com/abc";
+  const r = validateFormSubmission(d);
+  assert.equal(r.valid, false);
+  assert.ok(r.errors.some((e) => e.includes("audio_link")));
+});
+
+test("youtube_url is optional (blank passes)", () => {
+  const d = base(); d.youtube_url = "";
+  assert.equal(validateFormSubmission(d).valid, true);
+});
+
+test("youtube_url when provided must be a valid URL", () => {
+  const d = base(); d.youtube_url = "not-a-url";
+  const r = validateFormSubmission(d);
+  assert.equal(r.valid, false);
+  assert.ok(r.errors.some((e) => e.includes("youtube_url")));
 });
 
 test("instagram notUsed passes without url", () => {

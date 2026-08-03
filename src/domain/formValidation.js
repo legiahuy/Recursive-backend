@@ -10,6 +10,23 @@ const isHttpUrl = (v) => {
 
 const nonEmpty = (v) => typeof v === "string" && v.trim().length > 0;
 
+// Audio deliverables must live on a permanent host. Only Google Drive and
+// Dropbox are accepted — expiring senders like WeTransfer are rejected.
+const isAllowedAudioHost = (v) => {
+  if (typeof v !== "string") return false;
+  try {
+    const host = new URL(v).hostname.toLowerCase();
+    return (
+      host === "drive.google.com" ||
+      host.endsWith(".drive.google.com") ||
+      host === "dropbox.com" ||
+      host.endsWith(".dropbox.com")
+    );
+  } catch {
+    return false;
+  }
+};
+
 const validateDsp = (key, entry, errors, { required = false, mustHaveUrl = false } = {}) => {
   const e = entry || {};
   if (mustHaveUrl) {
@@ -42,10 +59,24 @@ export const validateFormSubmission = (data) => {
 
   if (d.rights_attestation !== true) errors.push("rights_attestation: must be accepted");
 
+  // Audio download link — required, and restricted to Google Drive / Dropbox.
+  if (!nonEmpty(d.audio_link)) {
+    errors.push("audio_link: required");
+  } else if (!isHttpUrl(d.audio_link)) {
+    errors.push("audio_link: must be a valid http(s) URL");
+  } else if (!isAllowedAudioHost(d.audio_link)) {
+    errors.push("audio_link: must be a Google Drive or Dropbox link (no expiring links)");
+  }
+
   const dsp = d.dsp || {};
   validateDsp("spotify", dsp.spotify, errors);
   validateDsp("apple", dsp.apple, errors);
   validateDsp("soundcloud", dsp.soundcloud, errors, { required: true, mustHaveUrl: true });
+
+  // YouTube is optional — validate only when a value is provided.
+  if (nonEmpty(d.youtube_url) && !isHttpUrl(d.youtube_url)) {
+    errors.push("youtube_url: must be a valid http(s) URL");
+  }
 
   const ig = d.instagram || {};
   if (ig.notUsed !== true && !isHttpUrl(ig.url)) {
