@@ -172,19 +172,32 @@ const partyBlock = (a) => ({
   margin: [0, 0, 0, 10],
 });
 
-const signatureBlock = (title, name) => ({
-  stack: [
-    { text: title, bold: true, margin: [0, 12, 0, 0] },
-    ...(name ? [{ text: name }] : []),
-    { text: "____________________________________", margin: [0, 10, 0, 0] },
-  ],
-  margin: [0, 0, 0, 8],
-});
+const signatureBlock = (title, name, signatureImage) => {
+  // Leave room to sign: embed the owner's signature image when supplied,
+  // otherwise reserve blank vertical space above the line for a manual signature.
+  const signingSpace = signatureImage
+    ? { image: signatureImage, width: 150, margin: [0, 8, 0, 2] }
+    : { text: " ", margin: [0, 30, 0, 2] };
+  return {
+    stack: [
+      { text: title, bold: true, margin: [0, 12, 0, 0] },
+      ...(name ? [{ text: name }] : []),
+      signingSpace,
+      { text: "____________________________________" },
+      { text: "Signature", fontSize: 8, color: "#888888", margin: [0, 2, 0, 0] },
+    ],
+    margin: [0, 0, 0, 12],
+  };
+};
 
-const divider = {
+// pdfmake mutates the document definition in place during rendering, so any node
+// object reused across renders (or reused multiple times within one document) gets
+// corrupted — a module-level constant divider caused "otherArray.forEach is not a
+// function" on the second request. Always return a fresh object per use.
+const makeDivider = () => ({
   canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: "#999999" }],
   margin: [0, 12, 0, 12],
-};
+});
 
 export const buildContractDoc = (data) => {
   const label = data.label || {};
@@ -217,7 +230,7 @@ export const buildContractDoc = (data) => {
     { text: `Title: ${dash(data.trackTitle)}` },
     { text: `Expected Release Date: ${releaseHuman}`, margin: [0, 0, 0, 6] },
 
-    divider,
+    makeDivider(),
 
     // Recital
     {
@@ -244,7 +257,7 @@ export const buildContractDoc = (data) => {
   }
 
   // Royalty info
-  content.push(divider);
+  content.push(makeDivider());
   content.push({ text: "ROYALTY INFO", style: "h2" });
   content.push({ text: `Title: ${dash(data.trackTitle)}`, margin: [0, 0, 0, 6] });
   content.push({
@@ -261,9 +274,9 @@ export const buildContractDoc = (data) => {
   }
 
   // Signatures
-  content.push(divider);
+  content.push(makeDivider());
   content.push({ text: "IN WITNESS WHEREOF, this Agreement is signed, by:", margin: [0, 0, 0, 8] });
-  content.push(signatureBlock(dash(label.name).toUpperCase(), dash(label.owner)));
+  content.push(signatureBlock(dash(label.name).toUpperCase(), dash(label.owner), label.signatureImage));
   for (const a of artists) {
     content.push(signatureBlock(dash(a.alias), dash(a.legalName)));
   }
