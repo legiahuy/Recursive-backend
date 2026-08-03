@@ -130,7 +130,7 @@ export const getContractUrl = async (pipelineItemId) => {
     .from(CONTRACTS_BUCKET)
     .createSignedUrl(item.contract_pdf_path, SIGNED_URL_TTL);
   if (signErr) return null;
-  return { signedUrl: signed.signedUrl };
+  return signed.signedUrl;
 };
 
 export { ContractError };

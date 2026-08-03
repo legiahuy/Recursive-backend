@@ -4,11 +4,13 @@ import { canTransition, isValidStage } from "../domain/pipelineStages.js";
 import { validateFormSubmission } from "../domain/formValidation.js";
 import { validateIntake } from "../domain/intakeValidation.js";
 import { sendPipelineInfoRequestEmail } from "../services/email.service.js";
+import { generateContract, getContractUrl, ContractError } from "../services/contract.service.js";
 
 const ITEM_FIELDS =
   "id, demo_submission_id, release_id, stage, track_title, agreed_release_date, " +
   "catalog_code, isrc, soundcloud_link, presave_link, cover_image_url, notes, " +
   "cancel_reason, intake_token, intake_status, intake_submitted_at, " +
+  "contract_pdf_path, contract_generated_at, contract_effective_date, " +
   "stage_changed_at, created_at, updated_at";
 
 const makeToken = () => crypto.randomBytes(24).toString("base64url");
@@ -336,6 +338,35 @@ export const submitIntakeByToken = async (req, res) => {
 
     res.status(200).json({ message: "Intake submitted. Thank you!" });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export const generateContractHandler = async (req, res) => {
+  try {
+    const effectiveDate = req.body?.effectiveDate || new Date().toISOString().slice(0, 10);
+    if (!DATE_RE.test(effectiveDate))
+      return res.status(400).json({ error: "effectiveDate must be YYYY-MM-DD" });
+
+    const result = await generateContract(req.params.id, { effectiveDate });
+    res.status(200).json(result);
+  } catch (error) {
+    if (error instanceof ContractError)
+      return res.status(error.status || 400).json({ error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getContractHandler = async (req, res) => {
+  try {
+    const signedUrl = await getContractUrl(req.params.id);
+    if (!signedUrl) return res.status(404).json({ error: "No contract generated yet" });
+    res.status(200).json({ signedUrl });
+  } catch (error) {
+    if (error instanceof ContractError)
+      return res.status(error.status || 400).json({ error: error.message });
     res.status(500).json({ error: error.message });
   }
 };
