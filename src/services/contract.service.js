@@ -1,4 +1,7 @@
 import { createRequire } from "module";
+import { readFile } from "fs/promises";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import { supabase } from "../config/supabase.config.js";
 import { STAGES } from "../domain/pipelineStages.js";
 import { buildContractDoc, summarizeRoyalty } from "../domain/contractTemplate.js";
@@ -15,6 +18,7 @@ pdfMake.addVirtualFileSystem(pdfFonts);
 const CONTRACTS_BUCKET = "contracts";
 const SIGNED_URL_TTL = 300; // seconds
 const OWNER_SIGNATURE_OBJECT = "_assets/owner-signature.png";
+const OWNER_SIGNATURE_FILE = join(dirname(fileURLToPath(import.meta.url)), "..", "assets", "owner-signature.png");
 
 const LABEL = {
   name: "Recursive Recordings",
@@ -23,9 +27,11 @@ const LABEL = {
 };
 
 // The owner's signature is embedded into every contract so it never needs manual signing.
-// Source (in priority order): the OWNER_SIGNATURE_DATA_URL env var (a full data: URL), or
-// a PNG uploaded to the private contracts bucket at `_assets/owner-signature.png`.
-// Cached in-process after the first load; replace the file + redeploy to refresh.
+// Source, in priority order:
+//   1. OWNER_SIGNATURE_DATA_URL env var (a full data: URL) — lets the owner override without a deploy;
+//   2. a PNG uploaded to the private contracts bucket at `_assets/owner-signature.png`;
+//   3. the committed asset at src/assets/owner-signature.png (the default — works out of the box).
+// Cached in-process after the first load; replace the source + redeploy to refresh.
 let ownerSignatureCache; // undefined = not loaded; null = loaded-but-absent; string = data URL
 const getOwnerSignature = async () => {
   if (ownerSignatureCache !== undefined) return ownerSignatureCache || undefined;
@@ -37,11 +43,16 @@ const getOwnerSignature = async () => {
     const { data, error } = await supabase.storage
       .from(CONTRACTS_BUCKET)
       .download(OWNER_SIGNATURE_OBJECT);
-    if (error || !data) {
-      ownerSignatureCache = null;
-      return undefined;
+    if (!error && data) {
+      const base64 = Buffer.from(await data.arrayBuffer()).toString("base64");
+      ownerSignatureCache = `data:image/png;base64,${base64}`;
+      return ownerSignatureCache;
     }
-    const base64 = Buffer.from(await data.arrayBuffer()).toString("base64");
+  } catch {
+    // fall through to the committed asset
+  }
+  try {
+    const base64 = (await readFile(OWNER_SIGNATURE_FILE)).toString("base64");
     ownerSignatureCache = `data:image/png;base64,${base64}`;
     return ownerSignatureCache;
   } catch {
