@@ -40,7 +40,17 @@ export const sendForSignature = async (pipelineItemId) => {
   const item = await loadItem(pipelineItemId);
   if (!item.contract_pdf_path) throw new ContractError(409, "Generate the contract before sending for signature");
   if (!canSend(item.stage)) throw new ContractError(409, "Contract can only be sent from the negotiation stage onward");
-  if (item.esign_status === "sent") throw new ContractError(409, "A signature request is already in progress");
+  const status = item.esign_status || "none";
+  if (status === "sent") {
+    throw new ContractError(409, "A signature request is already in progress");
+  }
+  if (status === "completed") {
+    throw new ContractError(409, "This contract has already been fully signed");
+  }
+  const SENDABLE = new Set(["none", "voided", "declined", "expired"]);
+  if (!SENDABLE.has(status)) {
+    throw new ContractError(409, `Cannot send for signature from status "${status}"`);
+  }
 
   const artists = normalizeArtists(item.pipeline_collaborators);
   if (artists.length === 0) throw new ContractError(422, "No submitted collaborators to sign");
