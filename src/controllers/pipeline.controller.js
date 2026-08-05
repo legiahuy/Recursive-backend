@@ -5,6 +5,9 @@ import { validateFormSubmission } from "../domain/formValidation.js";
 import { validateIntake } from "../domain/intakeValidation.js";
 import { sendPipelineInfoRequestEmail } from "../services/email.service.js";
 import { generateContract, getContractUrl, ContractError } from "../services/contract.service.js";
+import {
+  sendForSignature, remindSignature, voidSignature, getSignedContractUrl,
+} from "../services/esign.service.js";
 
 const ITEM_FIELDS =
   "id, demo_submission_id, release_id, stage, track_title, agreed_release_date, " +
@@ -367,6 +370,48 @@ export const getContractHandler = async (req, res) => {
   try {
     const signedUrl = await getContractUrl(req.params.id);
     if (!signedUrl) return res.status(404).json({ error: "No contract generated yet" });
+    res.status(200).json({ signedUrl });
+  } catch (error) {
+    if (error instanceof ContractError)
+      return res.status(error.status || 400).json({ error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const sendContractHandler = async (req, res) => {
+  try {
+    res.status(200).json(await sendForSignature(req.params.id));
+  } catch (error) {
+    if (error instanceof ContractError)
+      return res.status(error.status || 400).json({ error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const remindContractHandler = async (req, res) => {
+  try {
+    res.status(200).json(await remindSignature(req.params.id));
+  } catch (error) {
+    if (error instanceof ContractError)
+      return res.status(error.status || 400).json({ error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const voidContractHandler = async (req, res) => {
+  try {
+    res.status(200).json(await voidSignature(req.params.id, req.body?.reason));
+  } catch (error) {
+    if (error instanceof ContractError)
+      return res.status(error.status || 400).json({ error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getSignedContractHandler = async (req, res) => {
+  try {
+    const signedUrl = await getSignedContractUrl(req.params.id);
+    if (!signedUrl) return res.status(404).json({ error: "No signed contract yet" });
     res.status(200).json({ signedUrl });
   } catch (error) {
     if (error instanceof ContractError)

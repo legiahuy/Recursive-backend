@@ -6,6 +6,7 @@ import {
   getFormByToken, submitFormByToken,
   getIntakeByToken, submitIntakeByToken,
   generateContractHandler, getContractHandler,
+  sendContractHandler, remindContractHandler, voidContractHandler, getSignedContractHandler,
 } from "../controllers/pipeline.controller.js";
 
 const pipelineRouter = Router();
@@ -27,5 +28,9 @@ pipelineRouter.post("/:id/collaborators/:cid/resend", verifyToken, isAdmin, rese
 pipelineRouter.delete("/:id/collaborators/:cid", verifyToken, isAdmin, removeCollaborator);
 pipelineRouter.post("/:id/contract", verifyToken, isAdmin, generateContractHandler);
 pipelineRouter.get("/:id/contract", verifyToken, isAdmin, getContractHandler);
+pipelineRouter.post("/:id/contract/send", verifyToken, isAdmin, sendContractHandler);
+pipelineRouter.post("/:id/contract/remind", verifyToken, isAdmin, remindContractHandler);
+pipelineRouter.post("/:id/contract/void", verifyToken, isAdmin, voidContractHandler);
+pipelineRouter.get("/:id/contract/signed", verifyToken, isAdmin, getSignedContractHandler);
 
 export default pipelineRouter;
