@@ -181,3 +181,45 @@ test("buildContractDoc: each signature row is unbreakable so a block never split
   assert.ok(rows.length > 0);
   assert.ok(rows.every((r) => r.unbreakable === true));
 });
+
+// Recursively collect every { text } string in a pdfmake content tree.
+const collectText = (node, out = []) => {
+  if (node == null) return out;
+  if (Array.isArray(node)) { node.forEach((n) => collectText(n, out)); return out; }
+  if (typeof node === "object") {
+    if (typeof node.text === "string") out.push(node.text);
+    for (const k of ["stack", "columns", "content"]) if (node[k]) collectText(node[k], out);
+  }
+  return out;
+};
+
+const sampleData = {
+  label: { name: "Recursive Recordings", owner: "Le Gia Huy", email: "x@x.com" },
+  trackTitle: "Nightdrive",
+  effectiveDate: "2026-08-05",
+  expectedReleaseDate: "2026-09-01",
+  artists: [
+    { alias: "ALVA", legalName: "Alva One", nationality: "US", email: "a@x.com", splitPercent: 50 },
+    { alias: "BEX", legalName: "Bex Two", nationality: "UK", email: "b@x.com", splitPercent: 50 },
+  ],
+};
+
+test("signingTags emits one signature tag per artist with 1-based signer index", () => {
+  const doc = buildContractDoc(sampleData, { signingTags: true });
+  const texts = collectText(doc.content);
+  assert.ok(texts.includes("{{sign|1|*|Signature|artist_1}}"), "artist 1 tag present");
+  assert.ok(texts.includes("{{sign|2|*|Signature|artist_2}}"), "artist 2 tag present");
+});
+
+test("signingTags does NOT tag the owner block", () => {
+  const doc = buildContractDoc(sampleData, { signingTags: true });
+  const texts = collectText(doc.content);
+  const ownerTag = texts.filter((t) => t.startsWith("{{sign|0")); // owner would be index 0
+  assert.equal(ownerTag.length, 0);
+});
+
+test("default (no options) output contains no BoldSign tags", () => {
+  const doc = buildContractDoc(sampleData);
+  const texts = collectText(doc.content);
+  assert.equal(texts.filter((t) => t.includes("{{sign|")).length, 0);
+});
