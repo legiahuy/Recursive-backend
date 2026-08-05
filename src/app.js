@@ -16,10 +16,13 @@ import analyticsRouter from "./routes/analytics.routes.js";
 import postsRouter from "./routes/posts.routes.js";
 import emailTemplatesRouter from "./routes/emailTemplates.routes.js";
 import pipelineRouter from "./routes/pipeline.routes.js";
+import webhooksRouter from "./routes/webhooks.routes.js";
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buf) => { req.rawBody = buf.toString("utf8"); },
+}));
 
 app.get("/", (req, res) => {
   res.send("Recursive Web Backend");
@@ -43,5 +46,6 @@ app.use("/api/analytics", analyticsRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/email-templates", emailTemplatesRouter);
 app.use("/api/pipeline", pipelineRouter);
+app.use("/api/webhooks", webhooksRouter);
 
 export default app;

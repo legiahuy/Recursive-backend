@@ -6,7 +6,7 @@ import { validateIntake } from "../domain/intakeValidation.js";
 import { sendPipelineInfoRequestEmail } from "../services/email.service.js";
 import { generateContract, getContractUrl, ContractError } from "../services/contract.service.js";
 import {
-  sendForSignature, remindSignature, voidSignature, getSignedContractUrl,
+  sendForSignature, remindSignature, voidSignature, getSignedContractUrl, handleWebhookEvent,
 } from "../services/esign.service.js";
 
 const ITEM_FIELDS =
@@ -421,3 +421,49 @@ export const getSignedContractHandler = async (req, res) => {
 };
 
 export { logEvent };
+
+// Verify BoldSign's "t=<ts>, s0=<sig>[, s1=<sig>]" HMAC-SHA256 header over `${t}.${rawBody}`.
+const verifyBoldSignSignature = (rawBody, header, secret) => {
+  if (!header || !secret) return false;
+  const parts = Object.fromEntries(header.split(",").map((p) => p.trim().split("=").map((x) => x.trim())));
+  const t = parts.t;
+  if (!t) return false;
+  if (Math.abs(Date.now() / 1000 - Number(t)) > 300) return false; // replay window
+  const expected = crypto.createHmac("sha256", secret).update(`${t}.${rawBody}`).digest("hex");
+  return ["s0", "s1"].some((k) => {
+    const sig = parts[k];
+    if (!sig) return false;
+    const a = Buffer.from(expected, "hex");
+    const b = Buffer.from(sig, "hex");
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  });
+};
+
+// Defensively pull the fields we need from the BoldSign payload shape.
+const parseBoldSignEvent = (body) => {
+  const eventType = body?.event?.eventType || body?.eventType;
+  const data = body?.data || {};
+  const documentId = data.documentId || body?.documentId;
+  const signerList = data.signerDetails || data.signers || [];
+  const signers = signerList.map((s) => ({
+    email: s.signerEmail || s.emailAddress || s.email,
+    status: s.status,
+  }));
+  return { eventType, documentId, signers };
+};
+
+export const boldsignWebhookHandler = async (req, res) => {
+  const ok = verifyBoldSignSignature(
+    req.rawBody, req.headers["x-boldsign-signature"], process.env.BOLDSIGN_WEBHOOK_SECRET,
+  );
+  if (!ok) return res.status(401).json({ error: "Invalid signature" });
+  try {
+    await handleWebhookEvent(parseBoldSignEvent(req.body));
+    res.status(200).json({ received: true });
+  } catch (error) {
+    // Log and 200 to avoid infinite BoldSign retries on our transient errors,
+    // EXCEPT signature failures (already 401 above). Surface 500 only on hard failures.
+    console.error("BoldSign webhook error:", error.message);
+    res.status(500).json({ error: "Webhook processing failed" });
+  }
+};
