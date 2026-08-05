@@ -427,7 +427,7 @@ const verifyBoldSignSignature = (rawBody, header, secret) => {
   if (!header || !secret) return false;
   const parts = Object.fromEntries(header.split(",").map((p) => p.trim().split("=").map((x) => x.trim())));
   const t = parts.t;
-  if (!t) return false;
+  if (!t || !/^\d+$/.test(t)) return false;
   if (Math.abs(Date.now() / 1000 - Number(t)) > 300) return false; // replay window
   const expected = crypto.createHmac("sha256", secret).update(`${t}.${rawBody}`).digest("hex");
   return ["s0", "s1"].some((k) => {
@@ -461,8 +461,8 @@ export const boldsignWebhookHandler = async (req, res) => {
     await handleWebhookEvent(parseBoldSignEvent(req.body));
     res.status(200).json({ received: true });
   } catch (error) {
-    // Log and 200 to avoid infinite BoldSign retries on our transient errors,
-    // EXCEPT signature failures (already 401 above). Surface 500 only on hard failures.
+    // Any processing error here returns 500 (not 200), so BoldSign retries the
+    // delivery; handleWebhookEvent is idempotent, so retries are safe.
     console.error("BoldSign webhook error:", error.message);
     res.status(500).json({ error: "Webhook processing failed" });
   }
