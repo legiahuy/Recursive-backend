@@ -174,4 +174,4 @@ export const getContractUrl = async (pipelineItemId) => {
   return signed.signedUrl;
 };
 
-export { ContractError };
+export { ContractError, getOwnerSignature, normalizeArtists, LABEL };
