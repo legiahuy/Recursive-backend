@@ -173,6 +173,8 @@ const partyBlock = (a) => ({
 });
 
 const SIGN_WIDTH = 150; // signature display width (pt)
+const SIGN_LINE_WIDTH = 200; // signature rule width (pt) — fits a half-page column
+const SIGN_COLUMN_GAP = 28; // gap between the two signature columns (pt)
 // Blank-signature top margin, tuned so a manual-signature block is as tall as the
 // embedded-image block: image contributes ~8 + ~75 (image height at SIGN_WIDTH) + 2;
 // the spacer's own line adds ~12.5, so 70 + 12.5 + 2 ≈ the image's ~85.
@@ -189,8 +191,8 @@ const signatureBlock = (title, name, signatureImage) => {
       { text: title, bold: true, margin: [0, 12, 0, 0] },
       ...(name ? [{ text: name }] : []),
       signingSpace,
-      { text: "____________________________________" },
-      { text: "Signature", fontSize: 8, color: "#888888", margin: [0, 2, 0, 0] },
+      { canvas: [{ type: "line", x1: 0, y1: 0, x2: SIGN_LINE_WIDTH, y2: 0, lineWidth: 0.7, lineColor: "#333333" }] },
+      { text: "Signature", fontSize: 8, color: "#888888", margin: [0, 4, 0, 0] },
     ],
     margin: [0, 0, 0, 12],
   };
@@ -279,12 +281,20 @@ export const buildContractDoc = (data) => {
     });
   }
 
-  // Signatures
+  // Signatures — two-column grid: owner first (with embedded signature), then each
+  // artist fills left→right, top→bottom. Each row is unbreakable so a block's name,
+  // signing space, line and caption never split across a page boundary.
   content.push(makeDivider());
   content.push({ text: "IN WITNESS WHEREOF, this Agreement is signed, by:", margin: [0, 0, 0, 8] });
-  content.push(signatureBlock(dash(label.name).toUpperCase(), dash(label.owner), label.signatureImage));
-  for (const a of artists) {
-    content.push(signatureBlock(dash(a.alias), dash(a.legalName)));
+
+  const signCells = [
+    signatureBlock(dash(label.name).toUpperCase(), dash(label.owner), label.signatureImage),
+    ...artists.map((a) => signatureBlock(dash(a.alias), dash(a.legalName))),
+  ];
+  for (let i = 0; i < signCells.length; i += 2) {
+    const left = { ...signCells[i], width: "*" };
+    const right = signCells[i + 1] ? { ...signCells[i + 1], width: "*" } : { text: "", width: "*" };
+    content.push({ unbreakable: true, columnGap: SIGN_COLUMN_GAP, columns: [left, right] });
   }
 
   return {

@@ -154,3 +154,30 @@ test("buildContractDoc: embeds owner signature image when supplied", () => {
   );
   assert.match(s, /data:image\/png;base64,AAAA/);
 });
+
+const signatureRows = (doc) => doc.content.filter((c) => c && c.unbreakable && Array.isArray(c.columns));
+
+test("buildContractDoc: signatures render as a two-column grid (owner + first artist side by side)", () => {
+  const rows = signatureRows(buildContractDoc(baseData({ artists: [artist()] })));
+  assert.equal(rows.length, 1, "owner + 1 artist should be a single row");
+  assert.equal(rows[0].columns.length, 2, "each signature row has two columns");
+  // owner (left) carries the label owner name; artist (right) carries the alias
+  const s = JSON.stringify(rows[0]);
+  assert.match(s, /Le Gia Huy/);
+  assert.match(s, /Lizzi/);
+});
+
+test("buildContractDoc: extra artists wrap into additional two-column rows", () => {
+  const rows = signatureRows(
+    buildContractDoc(baseData({ artists: [artist(), artist({ alias: "Coco" }), artist({ alias: "Dee" })] })),
+  );
+  // 1 owner + 3 artists = 4 cells => 2 rows of 2 columns each
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map((r) => r.columns.length), [2, 2]);
+});
+
+test("buildContractDoc: each signature row is unbreakable so a block never splits across pages", () => {
+  const rows = signatureRows(buildContractDoc(baseData({ artists: [artist(), artist({ alias: "Coco" })] })));
+  assert.ok(rows.length > 0);
+  assert.ok(rows.every((r) => r.unbreakable === true));
+});
