@@ -180,12 +180,23 @@ const SIGN_COLUMN_GAP = 28; // gap between the two signature columns (pt)
 // the spacer's own line adds ~12.5, so 70 + 12.5 + 2 ≈ the image's ~85.
 const SIGN_SPACE_MARGIN = 70;
 
-const signatureBlock = (title, name, signatureImage) => {
+const signatureBlock = (title, name, signatureImage, signingTagIndex) => {
   // Leave equal room to sign in every block: embed the owner's signature image when
-  // supplied, otherwise reserve matching blank vertical space above the line.
-  const signingSpace = signatureImage
-    ? { image: signatureImage, width: SIGN_WIDTH, margin: [0, 8, 0, 2] }
-    : { text: " ", margin: [0, SIGN_SPACE_MARGIN, 0, 2] };
+  // supplied, an invisible BoldSign text-tag when generating the e-sign variant, or
+  // otherwise reserve matching blank vertical space above the line.
+  let signingSpace;
+  if (signatureImage) {
+    signingSpace = { image: signatureImage, width: SIGN_WIDTH, margin: [0, 8, 0, 2] };
+  } else if (signingTagIndex) {
+    signingSpace = {
+      text: `{{sign|${signingTagIndex}|*|Signature|artist_${signingTagIndex}}}`,
+      color: "#FFFFFF",
+      fontSize: 6,
+      margin: [0, SIGN_SPACE_MARGIN, 0, 2],
+    };
+  } else {
+    signingSpace = { text: " ", margin: [0, SIGN_SPACE_MARGIN, 0, 2] };
+  }
   return {
     stack: [
       { text: title, bold: true, margin: [0, 12, 0, 0] },
@@ -207,7 +218,7 @@ const makeDivider = () => ({
   margin: [0, 12, 0, 12],
 });
 
-export const buildContractDoc = (data) => {
+export const buildContractDoc = (data, { signingTags = false } = {}) => {
   const label = data.label || {};
   const artists = data.artists || [];
   const royalty = summarizeRoyalty(artists);
@@ -289,7 +300,9 @@ export const buildContractDoc = (data) => {
 
   const signCells = [
     signatureBlock(dash(label.name).toUpperCase(), dash(label.owner), label.signatureImage),
-    ...artists.map((a) => signatureBlock(dash(a.alias), dash(a.legalName))),
+    ...artists.map((a, i) =>
+      signatureBlock(dash(a.alias), dash(a.legalName), undefined, signingTags ? i + 1 : undefined),
+    ),
   ];
   for (let i = 0; i < signCells.length; i += 2) {
     const left = { ...signCells[i], width: "*" };
