@@ -453,6 +453,16 @@ const parseBoldSignEvent = (body) => {
 };
 
 export const boldsignWebhookHandler = async (req, res) => {
+  // BoldSign's endpoint verification (the "Verify" button and periodic re-checks)
+  // sends an UNSIGNED POST with eventType "Verification" and only expects a 200.
+  // It carries no document data, so short-circuit before signature checks — this
+  // is the pattern in BoldSign's own webhook sample. Real events are still verified.
+  if (
+    req.headers["x-boldsign-event"] === "Verification" ||
+    req.body?.event?.eventType === "Verification"
+  ) {
+    return res.status(200).json({ received: true });
+  }
   const ok = verifyBoldSignSignature(
     req.rawBody, req.headers["x-boldsign-signature"], process.env.BOLDSIGN_WEBHOOK_SECRET,
   );
