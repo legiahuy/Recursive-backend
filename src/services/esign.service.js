@@ -64,18 +64,28 @@ export const sendForSignature = async (pipelineItemId) => {
   summarizeRoyalty(artists); // parity with generate flow (no-op guard)
   const pdf = await renderPdfBuffer(doc);
 
-  // Build the multipart send request. Signer order == artist order == 1-based tag index.
-  const form = new FormData();
-  form.append("Title", `Recording Contract — ${item.track_title || item.catalog_code || item.id}`);
-  form.append("UseTextTags", "true");
-  form.append("EnableSigningOrder", "false");
-  form.append("DisableEmails", "false");
-  form.append("Files", new Blob([pdf], { type: "application/pdf" }), "contract.pdf");
-  for (const a of artists) {
-    form.append("Signers", JSON.stringify({ Name: a.legalName || a.alias || "Artist", EmailAddress: a.email, SignerType: "Signer" }));
-  }
+  // BoldSign requires application/json with Signers as an ARRAY. A single-object
+  // multipart "Signers" field does not bind to List<DocumentSigner> and is rejected
+  // ("The email address field is required..."). Files are base64 data-URI strings.
+  // Signer order == artist order == 1-based text-tag signer index.
+  const payload = {
+    Title: `Recording Contract — ${item.track_title || item.catalog_code || item.id}`,
+    UseTextTags: true,
+    EnableSigningOrder: false,
+    DisableEmails: false,
+    Files: [`data:application/pdf;base64,${Buffer.from(pdf).toString("base64")}`],
+    Signers: artists.map((a) => ({
+      Name: a.legalName || a.alias || "Artist",
+      EmailAddress: a.email,
+      SignerType: "Signer",
+    })),
+  };
 
-  const res = await fetch(`${BASE_URL}/v1/document/send`, { method: "POST", headers: bsHeaders(), body: form });
+  const res = await fetch(`${BASE_URL}/v1/document/send`, {
+    method: "POST",
+    headers: { ...bsHeaders(), "Content-Type": "application/json", accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
   if (!res.ok) throw new ContractError(502, `BoldSign send failed (${res.status}): ${await res.text()}`);
   const { documentId } = await res.json();
   if (!documentId) throw new ContractError(502, "BoldSign did not return a documentId");
