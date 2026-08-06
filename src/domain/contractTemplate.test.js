@@ -207,8 +207,8 @@ const sampleData = {
 test("signingTags emits one signature tag per artist with 1-based signer index", () => {
   const doc = buildContractDoc(sampleData, { signingTags: true });
   const texts = collectText(doc.content);
-  assert.ok(texts.includes("{{sign|1|*|Signature|artist_1}}"), "artist 1 tag present");
-  assert.ok(texts.includes("{{sign|2|*|Signature|artist_2}}"), "artist 2 tag present");
+  assert.ok(texts.includes("{{sign|1|*||artist_1}}"), "artist 1 tag present");
+  assert.ok(texts.includes("{{sign|2|*||artist_2}}"), "artist 2 tag present");
 });
 
 test("signingTags does NOT tag the owner block", () => {

@@ -189,7 +189,7 @@ const signatureBlock = (title, name, signatureImage, signingTagIndex) => {
     signingSpace = { image: signatureImage, width: SIGN_WIDTH, margin: [0, 8, 0, 2] };
   } else if (signingTagIndex) {
     signingSpace = {
-      text: `{{sign|${signingTagIndex}|*|Signature|artist_${signingTagIndex}}}`,
+      text: `{{sign|${signingTagIndex}|*||artist_${signingTagIndex}}}`,
       color: "#FFFFFF",
       fontSize: 6,
       margin: [0, SIGN_SPACE_MARGIN, 0, 2],
